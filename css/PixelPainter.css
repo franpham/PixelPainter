@@ -2,6 +2,7 @@
 .button {
   width: 64px;
   height: 64px;
+  background-color: white;
   border: 1px solid black;
 }
 
@@ -12,7 +13,6 @@
   padding: 8px;
 }
 
-.grid {
-  border: 1px ridge black;
+.spacing {
   margin: 8px;
 }

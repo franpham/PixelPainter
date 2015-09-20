@@ -1,8 +1,8 @@
 
 function PixelPainter(width, height) {
   var defColors = ['white', 'silver', 'gray', 'black', 'red', 'maroon', 'yellow', 'olive', 'lime', 'green', 'aqua', 'teal', 'blue', 'navy', 'fuchsia', 'purple'];
-  this.grid = document.createElement('div');
-  this.topbar = document.createElement('div');
+  grid = document.createElement('div');
+  topbar = document.createElement('div');
 
   var buttons = new Array(width);
   var swatch = new Array(16);
@@ -35,10 +35,10 @@ function PixelPainter(width, height) {
       }
     }
   });
-  this.topbar.appendChild(erase);
-  this.topbar.appendChild(clear);
+  topbar.appendChild(erase);
+  topbar.appendChild(clear);
 
-  // make the this.grid buttons & register event listeners;
+  // make the grid buttons & register event listeners;
   for (var i = 0; i < width; i++) {
     buttons[i] = new Array(height);     // make each column;
 
@@ -58,9 +58,9 @@ function PixelPainter(width, height) {
     for (var j = 0; j < height; j++) {
       temp.appendChild(buttons[i][j]);
     }
-    this.grid.appendChild(temp);
+    grid.appendChild(temp);
   }
-  this.grid.className = 'spacing';
+  grid.className = 'spacing';
 
   // add the swatch buttons to a div grid;
   var row1 = document.createElement('div');
@@ -73,17 +73,13 @@ function PixelPainter(width, height) {
     else
       row2.appendChild(swatch[i]);
   }
-  this.topbar.appendChild(row1);
-  this.topbar.appendChild(row2);
+  topbar.appendChild(row1);
+  topbar.appendChild(row2);
   var hr = document.createElement('hr');
   hr.className = 'spacing';
-  this.topbar.appendChild(hr);
+  topbar.appendChild(hr);
+  document.getElementById('pixelPainter').appendChild(grid);
+  document.getElementById('topbar').appendChild(topbar);
 }
 
-PixelPainter.prototype.setup = function() {
-  document.getElementById('pixelPainter').appendChild(this.grid);
-  document.getElementById('topbar').appendChild(this.topbar);
-};
-
 var painter = new PixelPainter(8, 8);
-painter.setup();
