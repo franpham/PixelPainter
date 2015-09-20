@@ -3,16 +3,25 @@
   width: 64px;
   height: 64px;
   background-color: white;
-  border: 1px solid black;
+  border: 1px black solid;
 }
 
 .swatchButton {
+  font-size: 1em;
   width: 120px;
   height: 64px;
   margin: 8px;
   padding: 8px;
+  border: 1px black groove;
+}
+
+.info {
+  border-bottom: 1px black ridge;
+  padding-top: 16px;
+  text-align: center;
 }
 
 .spacing {
   margin: 8px;
+  text-align: center;
 }
