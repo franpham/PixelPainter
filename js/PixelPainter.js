@@ -8,9 +8,12 @@ function PixelPainter(width, height) {
   var swatch = new Array(16);
   var erase = document.createElement('button');
   var clear = document.createElement('button');
-  var selected = 'white';
-  var isPainting = isErasing = false;
+  var moved = document.createElement('button');
   var lastButton = thisButton = null;
+  var isPainting = isErasing = isMoving = false;
+  var moveFirst = moveLast = moveNew = -1;
+  var selected = 'white';
+  var moving = [];
 
   // make the swatch buttons and register event listeners;
   for (var i = 0; i < swatch.length; i++) {
@@ -22,11 +25,16 @@ function PixelPainter(width, height) {
     });
   }
 
-  // set properties and add listeners for erase & clear buttons
+  // set properties and add listeners for controls buttons
   erase.className = 'swatchButton';
   clear.className = 'swatchButton';
+  moved.className = 'swatchButton';
   erase.appendChild(document.createTextNode('Erase'));
   clear.appendChild(document.createTextNode('Clear'));
+  moved.appendChild(document.createTextNode('Select & Move'));
+  moved.addEventListener('click', function() {
+    isMoving = true;
+  });
   erase.addEventListener('click', function() {
     selected = 'white';
   });
@@ -37,8 +45,9 @@ function PixelPainter(width, height) {
       }
     }
   });
-  topbar.appendChild(erase);
   topbar.appendChild(clear);
+  topbar.appendChild(erase);
+  topbar.appendChild(moved);
 
   // make the grid buttons and register event listeners;
   for (var i = 0; i < width; i++) {
@@ -55,6 +64,7 @@ function PixelPainter(width, height) {
       });
       buttons[i][j].dataset.lastColor = 'white';
       buttons[i][j].addEventListener('mouseover', function() {
+        // IMPLEMENTATION NOTE: erasing does not start until cursor moves back to the previous button!
         if (isPainting) {
           if (this.style.background === selected && (lastButton === this || isErasing)) {
             lastButton.style.background = this.style.background = 'white';
@@ -66,6 +76,29 @@ function PixelPainter(width, height) {
           }
           lastButton = thisButton;    // must set AFTER checking condition above!
           thisButton = this;
+        }
+      });
+      buttons[i][j].dataset.listIndex = (i * j) + i;
+      buttons[i][j].addEventListener('click', function() {
+        if (!isMoving)    // DO NOT combine conditions: must check moveFirst, moveLast, moveNew in sequence!
+          return;
+        else if (moveFirst === -1) {  // start move selection;
+          moveFirst = this.dataset.listIndex;
+        }
+        else if (moveLast === -1) {    // finish move selection;
+          moveLast = this.dataset.listIndex;
+          moving = buttons.slice(moveFirst, moveLast - moveFirst + 1);
+        }
+        else if (moveNew === -1) {
+          moveNew = this.dataset.listIndex;
+        }
+        else if (moveNew > -1) {
+          for (var i = 0; i < moving.length; i++) {
+            buttons[moveFirst + i + moveNew].style.background = moving[i].style.background;
+            moving[i].style.background = 'white';
+            moveFirst = moveLast = moveNew = -1;    // RESET all move variables after moving!
+            isMoving = false;
+          }
         }
       });
     }
