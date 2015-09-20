@@ -40,10 +40,10 @@ function PixelPainter(width, height) {
     isErase = !isErase;
   });
   move.addEventListener('click', function() {
-    isMove = true;
+    isMove = true;    // handler must set to false;
   });
   copy.addEventListener('click', function() {
-    isCopy = true;
+    isCopy = true;    // handler must set to false;
   });
   erase.className = clear.className = 'swatchButton';
   move.className = copy.className = 'swatchButton';
@@ -67,72 +67,86 @@ function PixelPainter(width, height) {
       buttons[i][j].dataset.prevColor = 'white';       // custom data to record previous color;
       buttons[i][j].addEventListener('mouseover', function() {    // handler to paint and erase on moveover;
         // IMPLEMENTATION: undo/ redo color when any button is revisited during the same mouseover session;
-        if (!isSelect) {
-          return;
-        }
-        else if (isMove || isCopy) {    // make buttons opaque for selection;
-          var selectEnd = this.dataset.listIndex;
-          for (var i = 0; i <= selectEnd; i++) {
-            buttons[moveFirst + i].style.opacity = '0.3';
+        if (isSelect) {
+          if (isErase) {
+            this.dataset.prevColor = this.style.background = 'white';
           }
-        }
-        else if (isErase) {
-          this.dataset.prevColor = this.style.background = 'white';
-        }
-        else if (isPaint) {
-          if (this.style.background === thisColor || this.dataset.prevColor === thisColor) {
-            // IMPORTANT: the 1st condition checks for undo && the 2nd condition checks for redo;
-            if (lastButton === this) {        // MUST reset the last button also;
-              var prevTemp = prevButton.dataset.prevColor;
-              prevButton.dataset.prevColor = prevButton.style.background;
-              prevButton.style.background = prevTemp;
+          else if (isPaint) {
+            if (this.style.background === thisColor || this.dataset.prevColor === thisColor) {
+              // IMPORTANT: the 1st condition checks for undo && the 2nd condition checks for redo;
+              if (lastButton === this) {        // MUST reset the last button also;
+                var prevTemp = prevButton.dataset.prevColor;
+                prevButton.dataset.prevColor = prevButton.style.background;
+                prevButton.style.background = prevTemp;
+              }
+              var thisTemp = this.dataset.prevColor;      // MUST set previous color in order to redo color!
+              this.dataset.prevColor = this.style.background;
+              this.style.background = thisTemp;
             }
-            var thisTemp = this.dataset.prevColor;      // MUST set previous color in order to redo color!
-            this.dataset.prevColor = this.style.background;
-            this.style.background = thisTemp;
+            else {
+              this.dataset.prevColor = this.style.background;
+              this.style.background = thisColor;
+            }
+            lastButton = prevButton;    // must set AFTER checking condition above!
+            prevButton = this;
           }
-          else {
+        }       // make selection opaque only if 1st button is selected, but 2nd button is not;
+        else if ((isMove || isCopy) && moveFirst >= 0 && moveLast < 0) {
+          var selectEnd = parseInt(this.dataset.listIndex);
+          for (var i = moveFirst; i <= selectEnd; i++) {
+            var temp = buttons[parseInt(i / width)][i % width];
+            temp.style.opacity = '0.3';
+            temp.classList.add('selected');
+          }
+          this.cleanSelection(selectEnd);
+        }
+      });
+      buttons[i][j].dataset.listIndex = ((i * width) + j);    // custom data to save button's overall index position;
+      buttons[i][j].addEventListener('click', function() {    // handler to paint, select, copy, and "move" buttons;
+        if (isErase || isPaint) {
+          isSelect = !isSelect;   // NOTE: isSelect is used for erasing && painting only;
+          if (isErase) {
+            this.dataset.prevColor = this.style.background = 'white';
+          }
+          else if (isPaint) {
             this.dataset.prevColor = this.style.background;
             this.style.background = thisColor;
           }
-          lastButton = prevButton;    // must set AFTER checking condition above!
-          prevButton = this;
-        }
-      });
-      buttons[i][j].dataset.listIndex = (i * j) + i;    // custom data to save button's overall index position;
-      buttons[i][j].addEventListener('click', function() {    // handler to paint, select, copy, and "move" buttons;
-        isSelect = !isSelect;   // moveFirst && moveLast must be in if/else so that they're not set for painting and erasing;
-        if (isErase) {
-          this.dataset.prevColor = this.style.background = 'white';
-        }
-        else if (isPaint) {
-          this.dataset.prevColor = this.style.background;
-          this.style.background = thisColor;
-        }
-        else if (moveFirst === -1) {   // start selection;
-          moveFirst = this.dataset.listIndex;
-        }
-        else if (moveLast === -1) {   // finish selection;
-          moveLast = this.dataset.listIndex;
-          selection = buttons.slice(moveFirst, moveLast - moveFirst + 1);
         }
         else if (isMove || isCopy) {
-          var selectEnd = this.dataset.listIndex;
-          for (var i = 0; i <= selectEnd; i++) {  // restore button's opacity;
-            buttons[moveFirst + i].style.opacity = '1.0';
+          if (moveFirst === -1) {   // start selection;
+            moveFirst = parseInt(this.dataset.listIndex);
           }
-          moveNew = this.dataset.listIndex;
-          for (var i = 0; i < selection.length; i++) {
-            buttons[moveFirst + i + moveNew].style.background = selection[i].style.background;
-            if (isMove)
-              selection[i].style.background = 'white';
+          else if (moveLast === -1) {   // finish selection;
+            moveLast = parseInt(this.dataset.listIndex);
+            selection = buttons.slice(moveFirst, moveLast - moveFirst + 1);   // NEED to fix;
+            this.cleanSelection(moveLast);
           }
-          moveFirst = moveLast = moveNew = -1;    // RESET all move variables!
-          isMove = isCopy = false;
+          else {
+            moveNew = parseInt(this.dataset.listIndex);
+            for (var i = 0; i < selection.length; i++) {
+              var total = moveFirst + i + moveNew;
+              buttons[parseInt(total / width)][total % width].style.background = selection[i].style.background;
+              if (isMove)
+                selection[i].style.background = 'white';
+            }
+            moveFirst = moveLast = moveNew = -1;    // RESET all move variables!
+            isMove = isCopy = false;
+          }
         }
       });
     }
   }
+  this.cleanSelection = function(end) {
+    var total = width * height;
+    for (var i = total - 1; i > end; i--) {
+      var temp = buttons[parseInt(i / width)][i % width];
+      if (temp.style.opacity === '0.3') {    // MUST check cuz not all may be selected;
+        temp.style.opacity = '1.0';
+        temp.classList.remove('selected');
+      }
+    }
+  };
 
   // add buttons to a grid of div rows;
   grid.className = 'spacing';
