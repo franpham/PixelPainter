@@ -1,5 +1,18 @@
 
 .button {
-  width: 16px;
-  height: 16px;
+  width: 64px;
+  height: 64px;
+  border: 1px solid black;
+}
+
+.swatchButton {
+  width: 96px;
+  height: 48px;
+  margin: 8px;
+  padding: 8px;
+}
+
+.grid {
+  border: 1px ridge black;
+  margin: 8px;
 }

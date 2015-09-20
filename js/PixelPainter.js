@@ -1,6 +1,9 @@
 
 function PixelPainter(width, height) {
   var defColors = ['white', 'silver', 'gray', 'black', 'red', 'maroon', 'yellow', 'olive', 'lime', 'green', 'aqua', 'teal', 'blue', 'navy', 'fuchsia', 'purple'];
+  this.grid = document.createElement('div');
+  this.topbar = document.createElement('div');
+
   var buttons = new Array(width);
   var swatch = new Array(16);
   var erase = document.createElement('button');
@@ -10,6 +13,7 @@ function PixelPainter(width, height) {
   // make the swatch buttons
   for (var i = 0; i < swatch.length; i++) {
     swatch[i] = document.createElement('button');
+    swatch[i].className = 'button';
     swatch[i].style.background = defColors[i];
     swatch[i].addEventListener('click', function() {
       selColor = this.style.background;
@@ -17,10 +21,10 @@ function PixelPainter(width, height) {
   }
 
   // set properties and add listeners for erase & clear buttons
-  erase.className = 'button';
-  clear.className = 'button';
-  erase.setAttribute('value', 'Erase');
-  clear.setAttribute('value', 'Clear');
+  erase.className = 'swatchButton';
+  clear.className = 'swatchButton';
+  erase.appendChild(document.createTextNode('Erase'));
+  clear.appendChild(document.createTextNode('Clear'));
   erase.addEventListener('click', function() {
     selColor = 'white';
   });
@@ -31,8 +35,10 @@ function PixelPainter(width, height) {
       }
     }
   });
+  this.topbar.appendChild(erase);
+  this.topbar.appendChild(clear);
 
-  // make the grid buttons & register event listeners;
+  // make the this.grid buttons & register event listeners;
   for (var i = 0; i < width; i++) {
     buttons[i] = new Array(height);     // make each column;
 
@@ -46,27 +52,38 @@ function PixelPainter(width, height) {
   }
 
   // add buttons to a div grid;
-  var grid = document.createElement('div');
   for (var i = 0; i < width; i++) {
-    grid[i] = document.createElement('div');   // make each row
+    var temp = document.createElement('div');   // make each row
 
     for (var j = 0; j < height; j++) {
-      grid[i].appendChild(buttons[i][j]);
+      temp.appendChild(buttons[i][j]);
     }
+    this.grid.appendChild(temp);
   }
-  document.getElementById('PixelPainter').appendChild(grid);
+  this.grid.className = 'spacing';
 
-  // make the swatch buttons to a div grid;
-  var topbar = document.createElement('div');   // [ ] = 1 column
-  var row1 = document.createElement('div');     // [ [...] ]
-  var row2 = document.createElement('div');     // [ [...] [...] ] has 2 rows
+  // add the swatch buttons to a div grid;
+  var row1 = document.createElement('div');
+  var row2 = document.createElement('div');     // [ [...] [...] ] = 1 column of 2 rows
+  row1.className = 'spacing';
+  row2.className = 'spacing';
   for (var i = 0; i < swatch.length; i++) {
-    if (i < swatch.length)
+    if (i < swatch.length / 2)
       row1.appendChild(swatch[i]);
     else
       row2.appendChild(swatch[i]);
   }
-  topbar.appendChild(row1);
-  topbar.appendChild(row2);
-  document.getElementById('topbar').appendChild(topbar);
+  this.topbar.appendChild(row1);
+  this.topbar.appendChild(row2);
+  var hr = document.createElement('hr');
+  hr.className = 'spacing';
+  this.topbar.appendChild(hr);
 }
+
+PixelPainter.prototype.setup = function() {
+  document.getElementById('pixelPainter').appendChild(this.grid);
+  document.getElementById('topbar').appendChild(this.topbar);
+};
+
+var painter = new PixelPainter(8, 8);
+painter.setup();
