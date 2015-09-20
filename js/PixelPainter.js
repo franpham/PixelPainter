@@ -1,22 +1,24 @@
 
 function PixelPainter(width, height) {
   var defColors = ['white', 'silver', 'gray', 'black', 'red', 'maroon', 'yellow', 'olive', 'lime', 'green', 'aqua', 'teal', 'blue', 'navy', 'fuchsia', 'purple'];
-  grid = document.createElement('div');
-  topbar = document.createElement('div');
+  var grid = document.createElement('div');
+  var topbar = document.createElement('div');
 
   var buttons = new Array(width);
   var swatch = new Array(16);
   var erase = document.createElement('button');
   var clear = document.createElement('button');
-  var selColor = 'white';
+  var selected = 'white';
+  var isPainting = isErasing = false;
+  var lastButton = thisButton = null;
 
-  // make the swatch buttons
+  // make the swatch buttons and register event listeners;
   for (var i = 0; i < swatch.length; i++) {
     swatch[i] = document.createElement('button');
     swatch[i].className = 'button';
     swatch[i].style.background = defColors[i];
     swatch[i].addEventListener('click', function() {
-      selColor = this.style.background;
+      selected = this.style.background;
     });
   }
 
@@ -26,7 +28,7 @@ function PixelPainter(width, height) {
   erase.appendChild(document.createTextNode('Erase'));
   clear.appendChild(document.createTextNode('Clear'));
   erase.addEventListener('click', function() {
-    selColor = 'white';
+    selected = 'white';
   });
   clear.addEventListener('click', function() {
     for (var i = 0; i < width; i++) {
@@ -38,22 +40,40 @@ function PixelPainter(width, height) {
   topbar.appendChild(erase);
   topbar.appendChild(clear);
 
-  // make the grid buttons & register event listeners;
+  // make the grid buttons and register event listeners;
   for (var i = 0; i < width; i++) {
     buttons[i] = new Array(height);     // make each column;
-
     for (var j = 0; j < height; j++) {
       buttons[i][j] = document.createElement('button');
       buttons[i][j].className = 'button';
+      // buttons[i][j].name = 'button' + i + '/' + j;   // FOR DEBUGGING;
+
       buttons[i][j].addEventListener('click', function() {
-        this.style.background = selColor;
+        isPainting = !isPainting;
+        if (isPainting)
+          this.style.background = selected;
+      });
+      buttons[i][j].dataset.lastColor = 'white';
+      buttons[i][j].addEventListener('mouseover', function() {
+        if (isPainting) {
+          if (this.style.background === selected && (lastButton === this || isErasing)) {
+            lastButton.style.background = this.style.background = 'white';
+            isErasing = true;
+          }
+          else {
+            this.style.background = this.dataset.lastColor = selected;
+            isErasing = false;
+          }
+          lastButton = thisButton;    // must set AFTER checking condition above!
+          thisButton = this;
+        }
       });
     }
   }
 
-  // add buttons to a div grid;
+  // add buttons to a grid of div rows;
   for (var i = 0; i < width; i++) {
-    var temp = document.createElement('div');   // make each row
+    var temp = document.createElement('div');
 
     for (var j = 0; j < height; j++) {
       temp.appendChild(buttons[i][j]);
@@ -64,7 +84,7 @@ function PixelPainter(width, height) {
 
   // add the swatch buttons to a div grid;
   var row1 = document.createElement('div');
-  var row2 = document.createElement('div');     // [ [...] [...] ] = 1 column of 2 rows
+  var row2 = document.createElement('div');
   row1.className = 'spacing';
   row2.className = 'spacing';
   for (var i = 0; i < swatch.length; i++) {
@@ -73,13 +93,13 @@ function PixelPainter(width, height) {
     else
       row2.appendChild(swatch[i]);
   }
-  topbar.appendChild(row1);
-  topbar.appendChild(row2);
   var hr = document.createElement('hr');
   hr.className = 'spacing';
+  topbar.appendChild(row1);
+  topbar.appendChild(row2);
   topbar.appendChild(hr);
+  document.getElementById('pixelPainter').appendChild(topbar);
   document.getElementById('pixelPainter').appendChild(grid);
-  document.getElementById('topbar').appendChild(topbar);
 }
 
 var painter = new PixelPainter(8, 8);
