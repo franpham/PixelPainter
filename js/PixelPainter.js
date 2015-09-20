@@ -11,11 +11,10 @@ function PixelPainter(width, height) {
   var select = document.createElement('button');
   var move = document.createElement('button');
   var copy = document.createElement('button');
-  var lastButton = thisButton = null;
-  var isPainting = isErasing = false;
-  var isSelect = isMove = isCopy = false;
+  var isPaint = isSelect  = isMove = isCopy = false;
   var moveFirst = moveLast = moveNew = -1;
-  var selected = 'white';   // the selected color;
+  var lastButton= prevButton = null;
+  var thisColor = 'white';   // the selected color;
   var selection = [];       // the selected buttons;
 
   // make the swatch buttons and register event listeners;
@@ -24,7 +23,7 @@ function PixelPainter(width, height) {
     swatch[i].className = 'button';
     swatch[i].style.background = defColors[i];
     swatch[i].addEventListener('click', function() {
-      selected = this.style.background;
+      thisColor = this.style.background;
     });
   }
   clear.addEventListener('click', function() {
@@ -37,7 +36,7 @@ function PixelPainter(width, height) {
 
   // set properties and add listeners for controls buttons
   erase.addEventListener('click', function() {
-    selected = 'white';
+    thisColor = 'white';
   });
   select.addEventListener('click', function() {
     isSelect = true;
@@ -70,24 +69,33 @@ function PixelPainter(width, height) {
       // buttons[i][j].name = 'button' + i + '/' + j;   // FOR DEBUGGING;
 
       buttons[i][j].addEventListener('click', function() {    // handler to start AND stop painting and erasing;
-        isPainting = !isPainting;
-        if (isPainting)
-          this.style.background = selected;
+        isPaint = !isPaint;
+        if (isPaint) {
+          this.dataset.prevColor = this.style.background;
+          this.style.background = thisColor;
+        }
       });
-      buttons[i][j].dataset.lastColor = 'white';            // custom data to record previous color;
+      buttons[i][j].dataset.prevColor = 'white';       // custom data to record previous color;
       buttons[i][j].addEventListener('mouseover', function() {    // handler to paint and erase on moveover;
-        // IMPLEMENTATION NOTE: erasing does not start until cursor moves back to the previous button!
-        if (isPainting) {
-          if (this.style.background === selected && (lastButton === this || isErasing)) {
-            lastButton.style.background = this.style.background = this.dataset.lastColor; // 'white';
-            isErasing = true;
+        // IMPLEMENTATION: undo/ redo color when any button is revisited during the same mouseover session;
+        if (isPaint) {
+          if (this.style.background === thisColor || this.dataset.prevColor === thisColor) {
+            // IMPORTANT: the 1st condition checks for undo && the 2nd condition checks for redo;
+            if (lastButton === this) {        // MUST reset the last button also;
+              var prevTemp = prevButton.dataset.prevColor;
+              prevButton.dataset.prevColor = prevButton.style.background;
+              prevButton.style.background = prevTemp;
+            }
+            var thisTemp = this.dataset.prevColor;      // MUST set previous color in order to redo color!
+            this.dataset.prevColor = this.style.background;
+            this.style.background = thisTemp;
           }
           else {
-            this.style.background = this.dataset.lastColor = selected;
-            isErasing = false;
+            this.dataset.prevColor = this.style.background;
+            this.style.background = thisColor;
           }
-          lastButton = thisButton;    // must set AFTER checking condition above!
-          thisButton = this;
+          lastButton = prevButton;    // must set AFTER checking condition above!
+          prevButton = this;
         }
       });
       buttons[i][j].dataset.listIndex = (i * j) + i;    // custom data to save button's overall index position;
