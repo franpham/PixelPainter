@@ -15,7 +15,7 @@ function PixelPainter(rows, cols) {
   var thisColor = 'white';    // the selected color;
   var selection = {};         // the selected buttons;
   var self = this;            // "this" in event listeners refer to html elements;
-  this.moveFirst = -1;        // no getter methods, so keep public;
+  this.moveFirst = -1;        // no getter methods for these properties, so keep public;
   this.moveLast = -1;
   this.cols = cols;
 
@@ -34,8 +34,8 @@ function PixelPainter(rows, cols) {
 
     // make the swatch buttons and register event listeners;
   for (var i = 0; i < swatch.length; i++) {
-    swatch[i] = document.createElement('button');
-    swatch[i].className = 'button';
+    swatch[i] = document.createElement('div');
+    swatch[i].className = 'swatchButton';
     swatch[i].style.background = defColors[i];
     swatch[i].addEventListener('click', function() {
       self.clearSelection();
@@ -52,7 +52,7 @@ function PixelPainter(rows, cols) {
     }
   });
 
-  // set properties and add listeners for controls buttons
+  // set properties and add listeners for control buttons
   erase.addEventListener('click', function() {
     self.clearSelection();
     thisColor = 'white';
@@ -67,8 +67,8 @@ function PixelPainter(rows, cols) {
     isCopy = true;    // NOT isCopy = !isCopy;
   });
 
-  erase.className = clear.className = 'swatchButton';
-  move.className = copy.className = 'swatchButton';
+  erase.className = clear.className = 'control';
+  move.className = copy.className = 'control';
   erase.appendChild(document.createTextNode('Erase'));
   clear.appendChild(document.createTextNode('Clear'));
   move.appendChild(document.createTextNode('Move'));
@@ -82,7 +82,7 @@ function PixelPainter(rows, cols) {
   for (var i = 0; i < rows; i++) {
     buttons[i] = new Array(cols);     // make each column;
     for (var j = 0; j < cols; j++) {
-      buttons[i][j] = document.createElement('button');
+      buttons[i][j] = document.createElement('div');
       buttons[i][j].className = 'button';
       // buttons[i][j].name = i + '/' + j;   // FOR DEBUGGING;
 
@@ -145,8 +145,8 @@ function PixelPainter(rows, cols) {
             }
             else {
               var keys = Object.keys(selection);
-              var maxMove = self.findMaxMove(movePos);
-              console.log("maxMove = " + maxMove);
+              var maxMove = self.findMoveDiff(movePos);
+              // console.log("maxMove = " + maxMove);   // FOR DEBUGGING;
               for (var i = 0; i < keys.length; i++) {
                 var total = parseInt(selection[keys[i]].dataset.listIndex) + maxMove;
                 buttons[parseInt(total / cols)][total % cols].style.background = selection[keys[i]].style.background;
@@ -195,7 +195,7 @@ PixelPainter.prototype.setSelection = function(lastIndex) {
   var lastx = lastIndex % this.cols;
   var selected = this.getSelection();
   var elements = this.getButtons();
-  for (var i = this.moveFirst; i <= lastIndex + this.cols; i++) {
+  for (var i = this.moveFirst; i <= lastIndex; i++) {
     var active = elements[parseInt(i / this.cols)][i % this.cols];
     var index = parseInt(active.dataset.listIndex);
     if ((parseInt(index / this.cols) <= lasty && (index % this.cols) <= lastx) &&
@@ -217,46 +217,26 @@ PixelPainter.prototype.resetSelection = function(lastIndex) {
       selected[keys[i]].classList.remove('selected');    // check if button is in current selected;
   }
 };
-// find the nearest corner to movePos, then find the difference between that corner and movePos;
-PixelPainter.prototype.findMaxMove = function(movePos) {    // movePos is the selected position, which is required to be outside the selected area;
+// calculate the difference in position between that movePos and it nearest corner;
+// movePos is the selected position, which is required to be outside the selected area;
+PixelPainter.prototype.findMoveDiff = function(movePos) {
   var picky = parseInt(movePos / this.cols);
   var pickx = movePos % this.cols;
   var topLeft = this.moveFirst;
-  var topRight = this.moveFirst + (this.moveLast % this.cols);
   var bottomRight = this.moveLast;
-  var bottomLeft = this.moveLast - (this.moveLast % this.cols);
-  var corner;
-  if (picky < parseInt(topLeft / this.cols))
-    corner = pickx > topRight % this.cols ? topRight : topLeft;
-  else if (picky > parseInt(bottomRight / this.cols))
-    corner = pickx < bottomLeft % this.cols ? bottomLeft : bottomRight;
-  else  // else picky is between topLeft && bottomRight;
-    corner = pickx < topLeft % this.cols ? bottomLeft : topRight;
-  var cornerx = corner % this.cols;
-  var cornery = parseInt(corner / this.cols);
-  var movex = pickx - cornerx;
-  var movey = picky - cornery;
-  var moveyOnly = (picky < parseInt(topLeft / this.cols) || picky > parseInt(bottomRight / this.cols)) &&
-    (pickx >= topLeft % this.cols) && (pickx <= topRight % this.cols);
-  var movexOnly = (pickx < topLeft % this.cols) || (pickx > topRight % this.cols) &&
-    picky >= parseInt(topLeft / this.cols) && picky <= parseInt(bottomLeft / this.cols);
-  return (movey * (moveyOnly ? 0 : this.cols)) + (movexOnly ? 0 : movex);
+  var movey = picky < parseInt(topLeft / this.cols) ? picky - parseInt(topLeft / this.cols) :
+    (picky > parseInt(bottomRight / this.cols) ? picky - parseInt(bottomRight / this.cols) : 0);
+  var movex = pickx < topLeft % this.cols ? pickx - (topLeft % this.cols) :
+    (pickx > bottomRight % this.cols ? pickx - (bottomRight % this.cols) : 0);
+  return (movey * this.cols) + movex;
 };
 PixelPainter.prototype.isValidSpot = function(movePos) {
   var picky = parseInt(movePos / this.cols);
   var pickx = movePos % this.cols;
   var topLeft = this.moveFirst;
-  var topRight = this.moveFirst + (this.moveLast % this.cols);
   var bottomRight = this.moveLast;
-  var bottomLeft = this.moveLast - (this.moveLast % this.cols);
-  // MUST check each corner since x & y comparisons must include equality because x OR y can be equal, but NOT BOTH;
-  // if (movePos === topLeft || movePos === topRight || movePos === bottomLeft || movePos === bottomRight)
-  //   return false;
-  // return (pickx <= (topLeft % this.cols) || pickx >= (bottomRight % this.cols)) &&
-  //   (picky <= parseInt(topLeft / this.cols) || picky >= parseInt(bottomRight / this.cols));
-
-  return !(((pickx >= topLeft % this.cols) && (pickx <= topRight % this.cols)) &&
-    picky >= parseInt(topLeft / this.cols) && picky <= parseInt(bottomLeft / this.cols));
+  return !((pickx >= topLeft % this.cols) && (pickx <= bottomRight % this.cols) &&
+    picky >= parseInt(topLeft / this.cols) && picky <= parseInt(bottomRight / this.cols));
 };
 
-var painter = new PixelPainter(6, 6);
+var painter = new PixelPainter(24, 48);

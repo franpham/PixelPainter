@@ -1,33 +1,41 @@
 
 .button {
-  width: 64px;
-  height: 64px;
+  width: 24px;
+  height: 24px;
+  opacity: 1.0;
   background-color: white;
   border: 1px black solid;
-  opacity: 1.0;
+  display: inline-block;
 }
 
 .swatchButton {
+  width: 64px;
+  height: 64px;
+  border: 1px black groove;
+  display: inline-block;
+}
+
+.control {
   font-size: 1em;
   width: 120px;
   height: 64px;
   margin: 8px;
   padding: 8px;
-  border: 1px black groove;
+  border: 1px black ridge;
+}
+
+.selected {
+  border: 1px yellow groove;
+  opacity: 0.3;
 }
 
 .info {
   border-bottom: 1px black ridge;
-  padding: 8px;
   text-align: center;
+  padding-bottom: 16px;
 }
 
 .spacing {
   margin: 8px;
   text-align: center;
-}
-
-.selected {
-  border: 4px yellow groove;
-  opacity: 0.3;
 }
