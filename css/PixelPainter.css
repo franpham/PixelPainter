@@ -4,6 +4,7 @@
   height: 64px;
   background-color: white;
   border: 1px black solid;
+  opacity: 1.0;
 }
 
 .swatchButton {
@@ -17,7 +18,7 @@
 
 .info {
   border-bottom: 1px black ridge;
-  padding-top: 16px;
+  padding: 8px;
   text-align: center;
 }
 
@@ -28,4 +29,5 @@
 
 .selected {
   border: 4px yellow groove;
+  opacity: 0.3;
 }

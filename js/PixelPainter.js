@@ -11,52 +11,68 @@ function PixelPainter(width, height) {
   var move = document.createElement('button');
   var copy = document.createElement('button');
   var isPaint = isErase = isSelect = isMove = isCopy = false;
-  var moveFirst = moveLast = -1;
   var lastButton= prevButton = null;
-  var thisColor = 'white';   // the selected color;
-  var selection = {};       // the selected buttons;
+  var thisColor = 'white';    // the selected color;
+  var selection = {};         // the selected buttons;
+  var self = this;            // "this" in event listeners refer to html elements;
+  this.moveFirst = -1;        // no getter methods, so keep public;
+  this.moveLast = -1;
+  this.width = width;
 
-  // make the swatch buttons and register event listeners;
+  this.getButtons = function() {
+    return buttons;
+  };
+  this.getSelection = function() {
+    return selection;
+  };
+  this.clearSelection = function() {
+    isPaint = isErase = isSelect = isMove = isCopy = false;
+    this.moveFirst = this.moveLast = -1;
+    selection = {};   // don't need to call resetSelection since it's re-initialized;
+  };
+
+    // make the swatch buttons and register event listeners;
   for (var i = 0; i < swatch.length; i++) {
     swatch[i] = document.createElement('button');
     swatch[i].className = 'button';
     swatch[i].style.background = defColors[i];
     swatch[i].addEventListener('click', function() {
-      if ((isMove || isCopy) && moveFirst >= 0)
-        this.resetSelection(moveLast >= 0 ? moveLast : 0);
+      if (isMove || isCopy)
+        this.clearSelection();
+      isPaint = true;     // NOT isPaint = !isPaint; call AFTER clearSelection();
       thisColor = this.style.background;
-      isPaint = !isPaint;
     });
   }
   clear.addEventListener('click', function() {
-    for (var i = 0; i < width; i++) {
-      for (var j = 0; j < height; j++) {
+    for (var i = 0; i < cols; i++) {
+      for (var j = 0; j < rows; j++) {
         buttons[i][j].style.background = 'white';
       }
     }
-    if ((isMove || isCopy) && moveFirst >= 0)
-        this.resetSelection(moveLast >= 0 ? moveLast : 0);
+    if (isMove || isCopy)
+      this.clearSelection();
   });
 
   // set properties and add listeners for controls buttons
   erase.addEventListener('click', function() {
     thisColor = 'white';
     isErase = !isErase;
-    if ((isMove || isCopy) && moveFirst >= 0)
-        this.resetSelection(moveLast >= 0 ? moveLast : 0);
+    if (isMove || isCopy)
+      this.clearSelection();
   });
   move.addEventListener('click', function() {
-    if ((isMove || isCopy) && moveFirst >= 0)
-        this.resetSelection(moveLast >= 0 ? moveLast : 0);
+    if (isMove || isCopy)
+      this.clearSelection();
     else
       isMove = true;    // NOT isMove = !isMove;
   });
   copy.addEventListener('click', function() {
-    if ((isMove || isCopy) && moveFirst >= 0)
-        this.resetSelection(moveLast >= 0 ? moveLast : 0);
+    if (isMove || isCopy)
+      this.clearSelection();
     else
       isCopy = true;    // NOT isCopy = !isCopy;
   });
+
   erase.className = clear.className = 'swatchButton';
   move.className = copy.className = 'swatchButton';
   erase.appendChild(document.createTextNode('Erase'));
@@ -103,9 +119,10 @@ function PixelPainter(width, height) {
             prevButton = this;
           }
         }       // make selection opaque only if still dragging (1st button is selected, but 2nd button is not);
-        else if ((isMove || isCopy) && moveFirst >= 0) {
+        else if ((isMove || isCopy) && self.moveFirst >= 0 && self.moveLast < 0) {
           var selectEnd = parseInt(this.dataset.listIndex);
-          this.setSelection(selectEnd);
+          self.setSelection(selectEnd);       // add pixels' indices larger than last selection;
+          self.resetSelection(selectEnd);     // remove pixels' indices smaller than last selection;
         }
       });
       buttons[i][j].dataset.listIndex = ((i * width) + j);    // custom data to save button's overall index position;
@@ -121,93 +138,36 @@ function PixelPainter(width, height) {
           }
         }
         else if (isMove || isCopy) {
-          if (moveFirst === -1) {   // start selection;
-            moveFirst = parseInt(this.dataset.listIndex);
+          if (self.moveFirst === -1) {   // start selection;
+            self.moveFirst = parseInt(this.dataset.listIndex);
           }
-          else if (moveLast === -1) {   // finish selection;
-            moveLast = parseInt(this.dataset.listIndex);
+          else if (self.moveLast === -1) {   // finish selection;
+            self.moveLast = parseInt(this.dataset.listIndex);
           }
           else {
             var movePos = parseInt(this.dataset.listIndex);
-            if (!this.isValidSpot(movePos)) {
+            if (!self.isValidSpot(movePos)) {
               alert('Choose a position that is outside the selected area.');
             }
             else {
               var keys = Object.keys(selection);
-              movePos = this.findMaxMove(movePos);
+              var maxMove = self.findMaxMove(movePos);
               for (var i = 0; i < keys.length; i++) {
-                var total = moveFirst + i + movePos;
+                var total = self.moveFirst + i + maxMove;
                 buttons[total % width][parseInt(total / width)].style.background = selection[keys[i]].style.background;
                 if (isMove)
                   selection[keys[i]].style.background = 'white';
               }
-              this.resetSelection(moveLast);
+              if (!isCopy)    // DO NOT clearSelection() to allow multiple copies;
+                self.clearSelection();
             }
           }
         }
       });
     }
   }
-  this.setSelection = function(lastIndex) {
-    var lasty = parseInt(lastIndex / width);
-    var lastx = lastIndex % width;
-    for (var i = moveFirst; i <= lastIndex; i++) {
-      var temp = buttons[i % width][parseInt(i / width)];
-      var index = parseInt(temp.dataset.listIndex);
-      if (parseInt(index / width) <= lasty && (index % width) <= lastx) {
-        selection[index] = temp;   // only set buttons within selected rectangle;
-        selection[index].style.opacity = '0.3';
-        selection[index].classList.add('selected');
-      }
-    }
-  }
-  this.resetSelection = function(lastIndex) {
-    var lasty = parseInt(lastIndex / width);
-    var lastx = lastIndex % width;
-    var keys = Object.keys(selection);
-    for (var i = 0; i < keys.length; i++) {
-      var index = parseInt(selection[keys[i]].dataset.listIndex);
-      if (!isSelecting || (parseInt(index / width) <= lasty && (index % width) <= lastx)) {
-        selection[keys[i]].style.opacity = '1.0';           // check if button is in the current selection;
-        selection[keys[i]].classList.remove('selected');
-      }
-    }
-    isMove = isCopy = false;
-    moveFirst = moveLast = -1;
-    selection = {};
-  };
-  // compare with the center of the selection to determine moving direction;
-  // find the nearest corner to movePos, then find the difference between that corner and movePos;
-  this.findMaxMove = function(movePos) {
-    var movey = parseInt(movePos / width);
-    var movex = movePos % width;
-    var topLeft = moveFirst;
-    var topRight = moveFirst + (moveLast % width);
-    var bottomRight = moveLast;
-    var bottomLeft = moveLast - (moveLast % width);
-    var center = (moveLast - moveFirst) / 2;
-    var moveRight = movex > (center % width);
-    var moveDown = movey > parseInt(center / width);
-    var nearest = Math.min(Math.abs(movePos - topLeft), Math.abs(movePos - topRight), Math.abs(movePos - bottomLeft), Math.abs(movePos - bottomRight));
-    nearest = nearest === Math.abs(movePos - topLeft) ? topLeft : (nearest === Math.abs(movePos - topRight) ? topRight :
-      (nearest === Math.abs(movePos - bottomLeft) ? bottomLeft : bottomRight));
-    return movePos - nearest;
-  };
-  this.isValidSpot = function(movePos) {
-    var movey = parseInt(movePos / width);
-    var movex = movePos % width;
-    var topLeft = moveFirst;
-    var topRight = moveFirst + (moveLast % width);
-    var bottomRight = moveLast;
-    var bottomLeft = moveLast - (moveLast % width);
-    // MUST check each corner since x & y comparisons must include equality because x OR y can be equal, but NOT BOTH;
-    if (movePos === topLeft || movePos === topRight || movePos === bottomLeft || movePos === bottomRight)
-      return false;
-    return (movex <= (topLeft % width) || movex >= (bottomRight % width)) &&
-      (movey <= parseInt(topLeft / width) || movey >= parseInt(bottomRight / width));
-  }
 
-  // add buttons to a grid of div rows;
+  // add buttons to a grid of div row;
   grid.className = 'spacing';
   for (var i = 0; i < width; i++) {
     var temp = document.createElement('div');
@@ -216,7 +176,7 @@ function PixelPainter(width, height) {
     }
     grid.appendChild(temp);
   }
-  // add the swatch buttons to 2 div rows;
+  // add the swatch buttons to 2 div row;
   var row1 = document.createElement('div');
   var row2 = document.createElement('div');
   for (var i = 0; i < swatch.length; i++) {
@@ -225,16 +185,70 @@ function PixelPainter(width, height) {
     else
       row2.appendChild(swatch[i]);
   }
-  var info = document.createElement('div');   // DO NOT chain createTextNode, else info will be set to a TextNode;
-  info.appendChild(document.createTextNode('Click to start drawing or selecting, then click again to stop.'));
-  info.appendChild(document.createTextNode('For Copy & Move, select the content first, then select the square of the new position.'));
-  info.className = 'spacing info';
   topbar.className = 'spacing';
   topbar.appendChild(row1);
   topbar.appendChild(row2);
-  topbar.appendChild(info);
   document.getElementById('pixelPainter').appendChild(topbar);
   document.getElementById('pixelPainter').appendChild(grid);
 }
 
+PixelPainter.prototype.setSelection = function(lastIndex) {
+  var firsty = parseInt(this.moveFirst / this.width);
+  var firstx = this.moveFirst % this.width;
+  var lasty = parseInt(lastIndex / this.width);
+  var lastx = lastIndex % this.width;
+  var selected = this.getSelection();
+  var elements = this.getButtons();
+  for (var i = this.moveFirst; i <= lastIndex + this.width; i++) {
+    var active = elements[i % this.width][parseInt(i / this.width)];
+    var index = parseInt(active.dataset.listIndex);
+    if ((parseInt(index / this.width) <= lasty && (index % this.width) <= lastx) &&
+        (parseInt(index / this.width) >= firsty && (index % this.width) >= firstx)) {
+      selected[index] = active;       // only set buttons within selected rectangle;
+      selected[index].classList.add('selected');
+    }
+  }
+};
+// do not need to check selection < moveFirst position since selection before moveFirst is not allowed;
+PixelPainter.prototype.resetSelection = function(lastIndex) {
+  var lasty = parseInt(lastIndex / this.width);
+  var lastx = lastIndex % this.width;
+  var selected = this.getSelection();
+  var keys = Object.keys(selected);
+  for (var i = 0; i < keys.length; i++) {
+    var index = parseInt(selected[keys[i]].dataset.listIndex);
+    if (parseInt(index / this.width) > lasty || (index % this.width) > lastx) // && parseInt(index / this.width) < lasty))
+      selected[keys[i]].classList.remove('selected');    // check if button is in current selected;
+  }
+};
+// compare with the center of the selected to determine moving direction;
+// find the nearest corner to movePos, then find the difference between that corner and movePos;
+PixelPainter.prototype.findMaxMove = function(movePos) {    // movePos is the selected position, which is required to be outside the selected area;
+  var movey = parseInt(movePos / this.width);
+  var movex = movePos % this.width;
+  var topLeft = this.moveFirst;
+  var topRight = this.moveFirst + (this.moveLast % this.width);
+  var bottomRight = this.moveLast;
+  var bottomLeft = this.moveLast - (this.moveLast % this.width);
+  var center = (this.moveLast - this.moveFirst) / 2;
+  var nearest = Math.min(Math.abs(movePos - topLeft), Math.abs(movePos - topRight), Math.abs(movePos - bottomLeft), Math.abs(movePos - bottomRight));
+  nearest = nearest === Math.abs(movePos - topLeft) ? topLeft : (nearest === Math.abs(movePos - topRight) ? topRight :
+    (nearest === Math.abs(movePos - bottomLeft) ? bottomLeft : bottomRight));
+  // var moveRight = movex > (center % this.width);
+  // var moveDown = movey > parseInt(center / this.width);
+  return movePos - nearest;       // return the difference in position in buttons array between movePos and its nearest corner;
+};
+PixelPainter.prototype.isValidSpot = function(movePos) {
+  var movey = parseInt(movePos / this.width);
+  var movex = movePos % this.width;
+  var topLeft = this.moveFirst;
+  var topRight = this.moveFirst + (this.moveLast % this.width);
+  var bottomRight = this.moveLast;
+  var bottomLeft = this.moveLast - (this.moveLast % this.width);
+  // MUST check each corner since x & y comparisons must include equality because x OR y can be equal, but NOT BOTH;
+  if (movePos === topLeft || movePos === topRight || movePos === bottomLeft || movePos === bottomRight)
+    return false;
+  return (movex <= (topLeft % this.width) || movex >= (bottomRight % this.width)) &&
+    (movey <= parseInt(topLeft / this.width) || movey >= parseInt(bottomRight / this.width));
+};
 var painter = new PixelPainter(10, 10);
