@@ -25,8 +25,8 @@ function PixelPainter(rows, cols) {
   this.getSelection = function() {
     return selection;
   };
-  this.clearSelection = function() {
-    this.resetSelection(0);     // pass 0 to reset all buttons;
+  this.clearSelection = function() {    // IMPORTANT: call this first since it clears all state;
+    this.resetSelection(0);
     isPaint = isErase = isSelect = isMove = isCopy = false;
     this.moveFirst = this.moveLast = -1;
     selection = {};
@@ -38,40 +38,33 @@ function PixelPainter(rows, cols) {
     swatch[i].className = 'button';
     swatch[i].style.background = defColors[i];
     swatch[i].addEventListener('click', function() {
-      if (isMove || isCopy)
-        self.clearSelection();
-      isPaint = true;     // NOT isPaint = !isPaint; call AFTER clearSelection();
+      self.clearSelection();
       thisColor = this.style.background;
+      isPaint = true;     // NOT isPaint = !isPaint;
     });
   }
   clear.addEventListener('click', function() {
+    self.clearSelection();
     for (var i = 0; i < rows; i++) {
       for (var j = 0; j < cols; j++) {
         buttons[i][j].style.background = 'white';
       }
     }
-    if (isMove || isCopy)
-      self.clearSelection();
   });
 
   // set properties and add listeners for controls buttons
   erase.addEventListener('click', function() {
+    self.clearSelection();
     thisColor = 'white';
     isErase = !isErase;
-    if (isMove || isCopy)
-      self.clearSelection();
   });
   move.addEventListener('click', function() {
-    if (isMove || isCopy)
-      self.clearSelection();
-    else
-      isMove = true;    // NOT isMove = !isMove;
+    self.clearSelection();
+    isMove = true;    // NOT isMove = !isMove;
   });
   copy.addEventListener('click', function() {
-    if (isMove || isCopy)
-      self.clearSelection();
-    else
-      isCopy = true;    // NOT isCopy = !isCopy;
+    self.clearSelection();
+    isCopy = true;    // NOT isCopy = !isCopy;
   });
 
   erase.className = clear.className = 'swatchButton';
@@ -153,14 +146,18 @@ function PixelPainter(rows, cols) {
             else {
               var keys = Object.keys(selection);
               var maxMove = self.findMaxMove(movePos);
+              console.log("maxMove = " + maxMove);
               for (var i = 0; i < keys.length; i++) {
-                var total = self.moveFirst + i + maxMove;
+                // var total = self.moveFirst + i + maxMove;
+                var total = parseInt(selection[keys[i]].dataset.listIndex) + maxMove;
                 buttons[parseInt(total / cols)][total % cols].style.background = selection[keys[i]].style.background;
                 if (isMove)
                   selection[keys[i]].style.background = 'white';
               }
-              if (!isCopy)    // DO NOT clearSelection() to allow multiple copies;
+              if (isMove)
                 self.clearSelection();
+              else   // DO NOT clear variables, just the selection if isCopy;
+                self.resetSelection(0);
             }
           }
         }
@@ -237,7 +234,7 @@ PixelPainter.prototype.findMaxMove = function(movePos) {    // movePos is the se
     (nearest === Math.abs(movePos - bottomLeft) ? bottomLeft : bottomRight));
   // var moveRight = movex > (center % this.cols);
   // var moveDown = movey > parseInt(center / this.cols);
-  return movePos - nearest;       // return the difference in position in buttons array between movePos and its nearest corner;
+  return Math.abs(movePos - nearest) + 1;   // return the difference in position in buttons array between movePos and its nearest corner;
 };
 PixelPainter.prototype.isValidSpot = function(movePos) {
   var movey = parseInt(movePos / this.cols);
@@ -252,4 +249,4 @@ PixelPainter.prototype.isValidSpot = function(movePos) {
   return (movex <= (topLeft % this.cols) || movex >= (bottomRight % this.cols)) &&
     (movey <= parseInt(topLeft / this.cols) || movey >= parseInt(bottomRight / this.cols));
 };
-var painter = new PixelPainter(10, 20);
+var painter = new PixelPainter(6, 6);
