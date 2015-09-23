@@ -19,7 +19,7 @@ function PixelPainter(rows, cols) {
   var lastButton= prevButton = null;
   var thisColor = 'white';    // the selected color;
   var selection = {};         // the selected buttons;
-  var clicked = {};           // the painted & erased buttons;
+  var painted = {};           // contains painted elements;
   var self = this;            // "this" in event listeners refer to html elements;
   this.moveFirst = -1;        // no getter methods for these properties, so keep public;
   this.moveLast = -1;
@@ -31,15 +31,18 @@ function PixelPainter(rows, cols) {
   this.getSelection = function() {
     return selection;
   };
-  this.getClicks = function() {
-    return clicked;
+  this.getPainted = function() {
+    return painted;
   };
   this.clearSelection = function() {    // IMPORTANT: call this first since it clears all state;
+    var keys = Object.keys(painted);
+    for (var i = 0; i < keys.length; i++) {
+      painted[keys[i]].dataset.isClicked = false;       // reset the current paint state;
+    }
     this.resetSelection(0);
     isPaint = isErase = isSelect = isMove = isCopy = false;
     this.moveFirst = this.moveLast = -1;
     selection = {};
-    this.clicked = {};
   };
 
     // make the swatch buttons and register event listeners;
@@ -58,10 +61,9 @@ function PixelPainter(rows, cols) {
     for (var i = 0; i < rows; i++) {
       for (var j = 0; j < cols; j++) {
         buttons[i][j].style.background = 'white';
-        if (clicked[buttons[i][j]])
-          clicked[buttons[i][j]] = false;
       }
     }
+    painted = {};
   });
 
   // set properties and add listeners for control buttons
@@ -99,17 +101,14 @@ function PixelPainter(rows, cols) {
     buttons[i] = new Array(cols);     // make each row;
     for (var j = 0; j < cols; j++) {
       buttons[i][j] = document.createElement('div');
-      // buttons[i][j].name = i + '/' + j;   // FOR DEBUGGING;
       buttons[i][j].className = 'button';
-      buttons[i][j].dataset.prevColor = 'white';       // custom data to record previous color;
-
+      // buttons[i][j].name = i + '/' + j;   // FOR DEBUGGING;
       // IMPLEMENTATION: undo/ redo color when any button is revisited during the same mouseover session;
       buttons[i][j].addEventListener('mouseover', function() {    // handler to paint and erase on mouseover;
         if (isSelect) {
           if (isErase) {
             this.dataset.prevColor = this.style.background = 'white';
-            if (clicked[this])
-              clicked[this] = false;
+            delete painted[this.dataset.gridIndex];
           }
           else if (isPaint) {
             if (this.style.background === thisColor || this.dataset.prevColor === thisColor) {
@@ -118,53 +117,56 @@ function PixelPainter(rows, cols) {
                 var prevTemp = prevButton.dataset.prevColor;
                 prevButton.dataset.prevColor = prevButton.style.background;
                 prevButton.style.background = prevTemp;
-                if (clicked[prevButton])
-                  clicked[prevButton] = prevButton.style.background !== 'white';
+                if (prevButton.style.background === 'white')
+                  delete painted[prevButton.dataset.gridIndex];
               }
               var thisTemp = this.dataset.prevColor;      // MUST set previous color in order to redo color!
               this.dataset.prevColor = this.style.background;
               this.style.background = thisTemp;
-              if (clicked[this])
-                clicked[this] = this.style.background !== 'white';
+              if (this.style.background === 'white')
+                delete painted[this.dataset.gridIndex];
             }
             else {
               this.dataset.prevColor = this.style.background;
               this.style.background = thisColor;
-              clicked[this] = true;
+              this.dataset.isClicked = true;
+              painted[this.dataset.gridIndex] = this;
             }
             lastButton = prevButton;    // must set AFTER checking condition above!
             prevButton = this;
           }
         }       // make selection opaque only if still dragging (1st button is selected, but 2nd button is not);
         else if ((isMove || isCopy) && self.moveFirst >= 0 && self.moveLast < 0) {
-          var selectEnd = parseInt(this.dataset.listIndex);
+          var selectEnd = parseInt(this.dataset.gridIndex);
           self.setSelection(selectEnd);       // add pixels' indices larger than last selection;
           self.resetSelection(selectEnd);     // remove pixels' indices smaller than last selection;
         }
       });
-      buttons[i][j].dataset.listIndex = (i * cols) + j;    // custom data to save button's overall index position;
+      buttons[i][j].dataset.prevColor = 'white';     // custom data to record previous color;
+      buttons[i][j].dataset.gridIndex = (i * cols) + j;       // custom data to save button's overall index position;
       buttons[i][j].addEventListener('click', function() {    // handler to paint, select, copy, and move;
         if (isErase || isPaint) {
           isSelect = !isSelect;   // NOTE: isSelect is used for erasing && painting only;
-          if (isErase) {
+          if (isErase) {          // reset dataset.prevColor so that erase doesn't act like the white paint;
             this.dataset.prevColor = this.style.background = 'white';
-            clicked[this] = false;
+            delete painted[this]; // don't need to set isClicked because it's removed from painted, and is true when readded;
           }
           else if (isPaint) {
             this.dataset.prevColor = this.style.background;
             this.style.background = thisColor;
-            clicked[this] = true;
+            this.dataset.isClicked = true;
+            painted[this.dataset.gridIndex] = this;
           }
         }
         else if (isMove || isCopy) {
           if (self.moveFirst === -1) {   // start selection;
-            self.moveFirst = parseInt(this.dataset.listIndex);
+            self.moveFirst = parseInt(this.dataset.gridIndex);
           }
           else if (self.moveLast === -1) {   // finish selection;
-            self.moveLast = parseInt(this.dataset.listIndex);
+            self.moveLast = parseInt(this.dataset.gridIndex);
           }
           else {
-            var movePos = parseInt(this.dataset.listIndex);
+            var movePos = parseInt(this.dataset.gridIndex);
             if (!self.isValidSpot(movePos)) {
               alert('Choose a position that is outside the selected area.');
             }
@@ -173,13 +175,15 @@ function PixelPainter(rows, cols) {
               var maxMove = self.findMoveDiff(movePos);
               // console.log("maxMove = " + maxMove);   // FOR DEBUGGING;
               for (var i = 0; i < keys.length; i++) {
-                var total = parseInt(selection[keys[i]].dataset.listIndex) + maxMove;
-                buttons[parseInt(total / cols)][total % cols].style.background = selection[keys[i]].style.background;
-                clicked[buttons[parseInt(total / cols)][total % cols]] = true;
+                var total = parseInt(selection[keys[i]].dataset.gridIndex) + maxMove;
+                var element = buttons[parseInt(total / cols)][total % cols];
+                element.style.background = selection[keys[i]].style.background;
+                element.dataset.isClicked = true;
+                painted[element.dataset.gridIndex] = element;
 
-                if (isMove && !selection[total]) {
+                if (isMove && !selection[total]) {    // DO NOT change the element if its new position matches selection's position;
                   selection[keys[i]].style.background = 'white';
-                  clicked[selection[keys[i]]] = false;
+                  delete painted[selection[keys[i]].dataset.gridIndex];
                 }
               }
               if (isMove)
@@ -224,7 +228,7 @@ PixelPainter.prototype.setSelection = function(lastIndex) {
   var elements = this.getButtons();
   for (var i = this.moveFirst; i <= lastIndex; i++) {
     var active = elements[parseInt(i / this.cols)][i % this.cols];
-    var index = parseInt(active.dataset.listIndex);
+    var index = parseInt(active.dataset.gridIndex);
     if ((parseInt(index / this.cols) <= lasty && (index % this.cols) <= lastx) &&
         (parseInt(index / this.cols) >= firsty && (index % this.cols) >= firstx)) {
       selected[index] = active;       // only set buttons within selected rectangle;
@@ -239,7 +243,7 @@ PixelPainter.prototype.resetSelection = function(lastIndex) {
   var selected = this.getSelection();
   var keys = Object.keys(selected);
   for (var i = 0; i < keys.length; i++) {
-    var index = parseInt(selected[keys[i]].dataset.listIndex);
+    var index = parseInt(selected[keys[i]].dataset.gridIndex);
     if (parseInt(index / this.cols) > lasty || (index % this.cols) > lastx)
       selected[keys[i]].classList.remove('selected');    // check if button is in current selected;
   }
@@ -267,22 +271,26 @@ PixelPainter.prototype.isValidSpot = function(movePos) {
 };
 PixelPainter.prototype.encode = function() {
   var str = '';
-  var clicks = this.getClicks();
-  var keys = Object.keys(clicks);
-  console.log('clicks = ' + keys.length);
+  var colored = this.getPainted();
+  var keys = Object.keys(colored);
   for (var i = 0; i < keys.length; i++) {
-    if (clicks[keys[i]])
-      str += keys[i].dataset.listIndex.toString(36) + PixelPainter.numColors[keys[i].style.background] + '-';
-      // a separator is needed since the encoded index can be 1,2, or 3 characters; use a dash since it's not uri-encoded;
+    var temp = keys[i].dataset.gridIndex.toString(36);
+    temp = temp.length === 1 ? '0' + temp : temp;
+    str += temp + PixelPainter.numColors[keys[i].style.background];
   }
-  return str.length === 0 ? str : str.substring(0, str.length - 1);   // remove trailing dash;
+  return str;
 };
 PixelPainter.prototype.decode = function(str) {
+  var keys = [];
+  var start = 0;
   var elements = this.getButtons();
-  var keys = str.split('-');
+  while (start < str.length) {
+    keys.push(str.substring(start, start + 3));
+    start += 3;
+  }
   for (var i = 0; i < keys.length; i++) {
     var index = parseInt(keys[i].substring(0, str.length - 1), 36);
-    var color = parseInt(PixelPainter.numColors[keys[i].charAt(str.length - 1)], 36);
+    var color = parseInt(keys[i].charAt(str.length - 1), 36);
     color = PixelPainter.defColors[color];
     var clickx = index % this.cols;
     var clicky = parseInt(index / this.cols);

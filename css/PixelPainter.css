@@ -38,7 +38,8 @@
 .grid {
   white-space: nowrap;
   overflow: auto;
-}
+  padding-bottom: 8px;
+} /* BUG: right border will not show up if nowrap is used; add specific padding to fix, but general "padding" will not work; */
 
 .spacing {
   margin: 8px;
