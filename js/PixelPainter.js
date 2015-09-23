@@ -1,19 +1,25 @@
+PixelPainter.defColors = ['white',    'silver',    'gray',    'black',    'red',    'maroon',    'yellow',    'olive',    'lime',    'green',
+  'aqua',     'teal',       'blue',      'navy',      'fuchsia',      'purple',     '#F08080',    '#F0E68C', '#D2691E', '#00FF7F', '#87CEEB',
+  '#6A5ACD',    '#FF1493',     '#DC143C',     '#FF7F50',     '#FFE4B5',     '#DEB887',    '#7FFF00',    '#40E0D0', '#00BFFF', '#9400D3', '#778899'];
+PixelPainter.numColors = {'white': 0, 'silver': 1, 'gray': 2, 'black': 3, 'red': 4, 'maroon': 5, 'yellow': 6, 'olive': 7, 'lime': 8, 'green': 9,
+  'aqua': 'A', 'teal': 'B', 'blue': 'C', 'navy': 'D', 'fuchsia': 'E', 'purple': 'F', '#F08080': 'G', '#F0E68C': 'H', '#D2691E': 'I', '#00FF7F': 'J', '#87CEEB': 'K',
+  '#6A5ACD': 'L', '#FF1493': 'M', '#DC143C': 'N', '#FF7F50': 'O', '#FFE4B5': 'P', '#DEB887': 'Q', '#7FFF00': 'R', '#40E0D0': 'S', '#00BFFF': 'T', '#9400D3': 'U', '#778899': 'V'};
 
 function PixelPainter(rows, cols) {
-  var defColors = ['white', 'silver', 'gray', 'black', 'red', 'maroon', 'yellow', 'olive', 'lime', 'green', 'aqua', 'teal', 'blue', 'navy', 'fuchsia', 'purple'];
-
-  var swatch = new Array(16);
+  var swatch = new Array(32);
   var buttons = new Array(rows);
-  var grid = document.createElement('div');
-  var topbar = document.createElement('div');
+  var grid = document.getElementById('grid');
+  var topbar = document.getElementById('topbar');
   var erase = document.createElement('button');
   var clear = document.createElement('button');
   var move = document.createElement('button');
   var copy = document.createElement('button');
+  var hash = document.createElement('button');
   var isPaint = isErase = isSelect = isMove = isCopy = false;
   var lastButton= prevButton = null;
   var thisColor = 'white';    // the selected color;
   var selection = {};         // the selected buttons;
+  var clicked = {};           // the painted & erased buttons;
   var self = this;            // "this" in event listeners refer to html elements;
   this.moveFirst = -1;        // no getter methods for these properties, so keep public;
   this.moveLast = -1;
@@ -25,18 +31,22 @@ function PixelPainter(rows, cols) {
   this.getSelection = function() {
     return selection;
   };
+  this.getClicks = function() {
+    return clicked;
+  };
   this.clearSelection = function() {    // IMPORTANT: call this first since it clears all state;
     this.resetSelection(0);
     isPaint = isErase = isSelect = isMove = isCopy = false;
     this.moveFirst = this.moveLast = -1;
     selection = {};
+    this.clicked = {};
   };
 
     // make the swatch buttons and register event listeners;
   for (var i = 0; i < swatch.length; i++) {
     swatch[i] = document.createElement('div');
     swatch[i].className = 'swatchButton';
-    swatch[i].style.background = defColors[i];
+    swatch[i].style.background = PixelPainter.defColors[i];
     swatch[i].addEventListener('click', function() {
       self.clearSelection();
       thisColor = this.style.background;
@@ -48,6 +58,8 @@ function PixelPainter(rows, cols) {
     for (var i = 0; i < rows; i++) {
       for (var j = 0; j < cols; j++) {
         buttons[i][j].style.background = 'white';
+        if (clicked[buttons[i][j]])
+          clicked[buttons[i][j]] = false;
       }
     }
   });
@@ -66,32 +78,38 @@ function PixelPainter(rows, cols) {
     self.clearSelection();
     isCopy = true;    // NOT isCopy = !isCopy;
   });
-
+  hash.addEventListener('click', function() {
+    alert(self.encode());
+  });
   erase.className = clear.className = 'control';
-  move.className = copy.className = 'control';
+  move.className = copy.className = hash.className = 'control';
   erase.appendChild(document.createTextNode('Erase'));
   clear.appendChild(document.createTextNode('Clear'));
   move.appendChild(document.createTextNode('Move'));
   copy.appendChild(document.createTextNode('Copy'));
+  hash.appendChild(document.createTextNode('Encode'));
   topbar.appendChild(erase);
   topbar.appendChild(clear);
   topbar.appendChild(move);
   topbar.appendChild(copy);
+  topbar.appendChild(hash);
 
   // make the grid buttons and register event listeners;
   for (var i = 0; i < rows; i++) {
-    buttons[i] = new Array(cols);     // make each column;
+    buttons[i] = new Array(cols);     // make each row;
     for (var j = 0; j < cols; j++) {
       buttons[i][j] = document.createElement('div');
-      buttons[i][j].className = 'button';
       // buttons[i][j].name = i + '/' + j;   // FOR DEBUGGING;
-
+      buttons[i][j].className = 'button';
       buttons[i][j].dataset.prevColor = 'white';       // custom data to record previous color;
+
+      // IMPLEMENTATION: undo/ redo color when any button is revisited during the same mouseover session;
       buttons[i][j].addEventListener('mouseover', function() {    // handler to paint and erase on mouseover;
-        // IMPLEMENTATION: undo/ redo color when any button is revisited during the same mouseover session;
         if (isSelect) {
           if (isErase) {
             this.dataset.prevColor = this.style.background = 'white';
+            if (clicked[this])
+              clicked[this] = false;
           }
           else if (isPaint) {
             if (this.style.background === thisColor || this.dataset.prevColor === thisColor) {
@@ -100,14 +118,19 @@ function PixelPainter(rows, cols) {
                 var prevTemp = prevButton.dataset.prevColor;
                 prevButton.dataset.prevColor = prevButton.style.background;
                 prevButton.style.background = prevTemp;
+                if (clicked[prevButton])
+                  clicked[prevButton] = prevButton.style.background !== 'white';
               }
               var thisTemp = this.dataset.prevColor;      // MUST set previous color in order to redo color!
               this.dataset.prevColor = this.style.background;
               this.style.background = thisTemp;
+              if (clicked[this])
+                clicked[this] = this.style.background !== 'white';
             }
             else {
               this.dataset.prevColor = this.style.background;
               this.style.background = thisColor;
+              clicked[this] = true;
             }
             lastButton = prevButton;    // must set AFTER checking condition above!
             prevButton = this;
@@ -119,16 +142,18 @@ function PixelPainter(rows, cols) {
           self.resetSelection(selectEnd);     // remove pixels' indices smaller than last selection;
         }
       });
-      buttons[i][j].dataset.listIndex = ((i * cols) + j);    // custom data to save button's overall index position;
-      buttons[i][j].addEventListener('click', function() {    // handler to paint, select, copy, and "move" buttons;
+      buttons[i][j].dataset.listIndex = (i * cols) + j;    // custom data to save button's overall index position;
+      buttons[i][j].addEventListener('click', function() {    // handler to paint, select, copy, and move;
         if (isErase || isPaint) {
           isSelect = !isSelect;   // NOTE: isSelect is used for erasing && painting only;
           if (isErase) {
             this.dataset.prevColor = this.style.background = 'white';
+            clicked[this] = false;
           }
           else if (isPaint) {
             this.dataset.prevColor = this.style.background;
             this.style.background = thisColor;
+            clicked[this] = true;
           }
         }
         else if (isMove || isCopy) {
@@ -150,8 +175,12 @@ function PixelPainter(rows, cols) {
               for (var i = 0; i < keys.length; i++) {
                 var total = parseInt(selection[keys[i]].dataset.listIndex) + maxMove;
                 buttons[parseInt(total / cols)][total % cols].style.background = selection[keys[i]].style.background;
-                if (isMove && !selection[total])
+                clicked[buttons[parseInt(total / cols)][total % cols]] = true;
+
+                if (isMove && !selection[total]) {
                   selection[keys[i]].style.background = 'white';
+                  clicked[selection[keys[i]]] = false;
+                }
               }
               if (isMove)
                 self.clearSelection();
@@ -164,7 +193,6 @@ function PixelPainter(rows, cols) {
     }
   }
   // add buttons to a grid of div row;
-  grid.className = 'spacing';
   for (var i = 0; i < rows; i++) {
     var temp = document.createElement('div');
     for (var j = 0; j < cols; j++) {
@@ -181,11 +209,10 @@ function PixelPainter(rows, cols) {
     else
       row2.appendChild(swatch[i]);
   }
-  topbar.className = 'spacing';
   topbar.appendChild(row1);
   topbar.appendChild(row2);
-  document.getElementById('pixelPainter').appendChild(topbar);
-  document.getElementById('pixelPainter').appendChild(grid);
+  if (window.location.hash)
+    this.decode(window.location.hash.substring(1));
 }
 
 PixelPainter.prototype.setSelection = function(lastIndex) {
@@ -237,6 +264,30 @@ PixelPainter.prototype.isValidSpot = function(movePos) {
   var bottomRight = this.moveLast;
   return !((pickx >= topLeft % this.cols) && (pickx <= bottomRight % this.cols) &&
     picky >= parseInt(topLeft / this.cols) && picky <= parseInt(bottomRight / this.cols));
+};
+PixelPainter.prototype.encode = function() {
+  var str = '';
+  var clicks = this.getClicks();
+  var keys = Object.keys(clicks);
+  console.log('clicks = ' + keys.length);
+  for (var i = 0; i < keys.length; i++) {
+    if (clicks[keys[i]])
+      str += keys[i].dataset.listIndex.toString(36) + PixelPainter.numColors[keys[i].style.background] + '-';
+      // a separator is needed since the encoded index can be 1,2, or 3 characters; use a dash since it's not uri-encoded;
+  }
+  return str.length === 0 ? str : str.substring(0, str.length - 1);   // remove trailing dash;
+};
+PixelPainter.prototype.decode = function(str) {
+  var elements = this.getButtons();
+  var keys = str.split('-');
+  for (var i = 0; i < keys.length; i++) {
+    var index = parseInt(keys[i].substring(0, str.length - 1), 36);
+    var color = parseInt(PixelPainter.numColors[keys[i].charAt(str.length - 1)], 36);
+    color = PixelPainter.defColors[color];
+    var clickx = index % this.cols;
+    var clicky = parseInt(index / this.cols);
+    elements[clicky][clickx].style.background = color;
+  }
 };
 
 var painter = new PixelPainter(24, 48);
