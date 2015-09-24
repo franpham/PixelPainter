@@ -49,10 +49,10 @@ function PixelPainter(rows, cols) {
   for (var i = 0; i < swatch.length; i++) {
     swatch[i] = document.createElement('div');
     swatch[i].className = 'swatchButton';
-    swatch[i].style.background = PixelPainter.defColors[i];
+    swatch[i].style.backgroundColor = PixelPainter.defColors[i];
     swatch[i].addEventListener('click', function() {
       self.clearSelection();
-      thisColor = this.style.background;
+      thisColor = this.style.backgroundColor;
       isPaint = true;     // NOT isPaint = !isPaint;
     });
   }
@@ -60,7 +60,7 @@ function PixelPainter(rows, cols) {
     self.clearSelection();
     for (var i = 0; i < rows; i++) {
       for (var j = 0; j < cols; j++) {
-        buttons[i][j].style.background = 'white';
+        buttons[i][j].style.backgroundColor = 'white';
       }
     }
     painted = {};
@@ -81,7 +81,7 @@ function PixelPainter(rows, cols) {
     isCopy = true;    // NOT isCopy = !isCopy;
   });
   hash.addEventListener('click', function() {
-    alert('#' + self.encode());
+    alert('Link to this URL to share your artwork:\n' + window.location + '#' + self.encode());
   });
   erase.className = clear.className = 'control';
   move.className = copy.className = hash.className = 'control';
@@ -107,28 +107,28 @@ function PixelPainter(rows, cols) {
       buttons[i][j].addEventListener('mouseover', function() {    // handler to paint and erase on mouseover;
         if (isSelect) {
           if (isErase) {
-            this.dataset.prevColor = this.style.background = 'white';
+            this.dataset.prevColor = this.style.backgroundColor = 'white';
             delete painted[this.dataset.gridIndex];
           }
           else if (isPaint) {
-            if (this.style.background === thisColor || this.dataset.prevColor === thisColor) {
+            if (this.style.backgroundColor === thisColor || this.dataset.prevColor === thisColor) {
               // IMPORTANT: the 1st condition checks for undo && the 2nd condition checks for redo;
               if (lastButton === this) {        // MUST reset the last button also;
                 var prevTemp = prevButton.dataset.prevColor;
-                prevButton.dataset.prevColor = prevButton.style.background;
-                prevButton.style.background = prevTemp;
-                if (prevButton.style.background === 'white')
+                prevButton.dataset.prevColor = prevButton.style.backgroundColor;
+                prevButton.style.backgroundColor = prevTemp;
+                if (prevButton.style.backgroundColor === 'white')
                   delete painted[prevButton.dataset.gridIndex];
               }
               var thisTemp = this.dataset.prevColor;      // MUST set previous color in order to redo color!
-              this.dataset.prevColor = this.style.background;
-              this.style.background = thisTemp;
-              if (this.style.background === 'white')
+              this.dataset.prevColor = this.style.backgroundColor;
+              this.style.backgroundColor = thisTemp;
+              if (this.style.backgroundColor === 'white')
                 delete painted[this.dataset.gridIndex];
             }
             else {
-              this.dataset.prevColor = this.style.background;
-              this.style.background = thisColor;
+              this.dataset.prevColor = this.style.backgroundColor;
+              this.style.backgroundColor = thisColor;
               this.dataset.isClicked = true;
               painted[this.dataset.gridIndex] = this;
             }
@@ -142,18 +142,19 @@ function PixelPainter(rows, cols) {
           self.resetSelection(selectEnd);     // remove pixels' indices smaller than last selection;
         }
       });
-      buttons[i][j].dataset.prevColor = 'white';     // custom data to record previous color;
+      buttons[i][j].style.backgroundColor = 'white';    // MUST set color here; colors set in CSS are NOT set in JS variables!
+      buttons[i][j].dataset.prevColor = 'white';        // custom data to record previous color;
       buttons[i][j].dataset.gridIndex = (i * cols) + j;       // custom data to save button's overall index position;
       buttons[i][j].addEventListener('click', function() {    // handler to paint, select, copy, and move;
         if (isErase || isPaint) {
           isSelect = !isSelect;   // NOTE: isSelect is used for erasing && painting only;
           if (isErase) {          // reset dataset.prevColor so that erase doesn't act like the white paint;
-            this.dataset.prevColor = this.style.background = 'white';
+            this.dataset.prevColor = this.style.backgroundColor = 'white';
             delete painted[this]; // don't need to set isClicked because it's removed from painted, and is true when re-added;
           }
           else if (isPaint) {
-            this.dataset.prevColor = this.style.background;
-            this.style.background = thisColor;
+            this.dataset.prevColor = this.style.backgroundColor;
+            this.style.backgroundColor = thisColor;
             this.dataset.isClicked = true;
             painted[this.dataset.gridIndex] = this;
           }
@@ -165,7 +166,7 @@ function PixelPainter(rows, cols) {
           else if (self.moveLast === -1) {   // finish selection;
             self.moveLast = parseInt(this.dataset.gridIndex);
           }
-          else {
+          else {      // IMPORTANT: dataset values are always returned as strings;
             var movePos = parseInt(this.dataset.gridIndex);
             if (!self.isValidSpot(movePos)) {
               alert('Choose a position that is outside the selected area.');
@@ -177,12 +178,13 @@ function PixelPainter(rows, cols) {
               for (var i = 0; i < keys.length; i++) {
                 var total = parseInt(selection[keys[i]].dataset.gridIndex) + maxMove;
                 var element = buttons[parseInt(total / cols)][total % cols];
-                element.style.background = selection[keys[i]].style.background;
+                element.dataset.prevColor = element.style.backgroundColor;
+                element.style.backgroundColor = selection[keys[i]].style.backgroundColor;
                 element.dataset.isClicked = true;
                 painted[element.dataset.gridIndex] = element;
 
                 if (isMove && !selection[total]) {    // DO NOT change the element if its new position matches selection's position;
-                  selection[keys[i]].style.background = 'white';
+                  selection[keys[i]].style.backgroundColor = 'white';
                   delete painted[selection[keys[i]].dataset.gridIndex];
                 }
               }
@@ -303,7 +305,7 @@ PixelPainter.prototype.decode = function(str) {
     var clickx = index % this.cols;
     var clicky = parseInt(index / this.cols);
     var element = items[clicky][clickx];
-    element.style.background = color;
+    element.style.backgroundColor = color;
     element.dataset.isClicked = true;
     colored[element.dataset.gridIndex] = element;
   }
