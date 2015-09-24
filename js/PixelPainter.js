@@ -81,7 +81,7 @@ function PixelPainter(rows, cols) {
     isCopy = true;    // NOT isCopy = !isCopy;
   });
   hash.addEventListener('click', function() {
-    alert(self.encode());
+    alert('#' + self.encode());
   });
   erase.className = clear.className = 'control';
   move.className = copy.className = hash.className = 'control';
@@ -149,7 +149,7 @@ function PixelPainter(rows, cols) {
           isSelect = !isSelect;   // NOTE: isSelect is used for erasing && painting only;
           if (isErase) {          // reset dataset.prevColor so that erase doesn't act like the white paint;
             this.dataset.prevColor = this.style.background = 'white';
-            delete painted[this]; // don't need to set isClicked because it's removed from painted, and is true when readded;
+            delete painted[this]; // don't need to set isClicked because it's removed from painted, and is true when re-added;
           }
           else if (isPaint) {
             this.dataset.prevColor = this.style.background;
@@ -269,33 +269,50 @@ PixelPainter.prototype.isValidSpot = function(movePos) {
   return !((pickx >= topLeft % this.cols) && (pickx <= bottomRight % this.cols) &&
     picky >= parseInt(topLeft / this.cols) && picky <= parseInt(bottomRight / this.cols));
 };
+
 PixelPainter.prototype.encode = function() {
   var str = '';
   var colored = this.getPainted();
   var keys = Object.keys(colored);
-  for (var i = 0; i < keys.length; i++) {
-    var temp = keys[i].dataset.gridIndex.toString(36);
-    temp = temp.length === 1 ? '0' + temp : temp;
-    str += temp + PixelPainter.numColors[keys[i].style.background];
+  for (var i = 0; i < keys.length; i++) {     // dataset always returns a STRING;
+    var index = Number(colored[keys[i]].dataset.gridIndex).toString(36);
+    index = index.length === 1 ? '0' + index : index;
+    var color = colored[keys[i]].style.backgroundColor;
+    if (color.indexOf('rgb') === 0) {
+      var nums = color.substring(4, color.length - 1).split(',');
+      color = RGBtoHex(nums[0], nums[1], nums[2]);
+    }
+    color = PixelPainter.numColors[color];
+    str += index + color;
   }
   return str;
 };
 PixelPainter.prototype.decode = function(str) {
   var keys = [];
   var start = 0;
-  var elements = this.getButtons();
+  var items = this.getButtons();
+  var colored = this.getPainted();
   while (start < str.length) {
     keys.push(str.substring(start, start + 3));
     start += 3;
   }
   for (var i = 0; i < keys.length; i++) {
-    var index = parseInt(keys[i].substring(0, str.length - 1), 36);
-    var color = parseInt(keys[i].charAt(str.length - 1), 36);
+    var index = parseInt(keys[i].substring(0, keys[i].length - 1), 36);
+    var color = parseInt(keys[i].charAt(keys[i].length - 1), 36);
     color = PixelPainter.defColors[color];
     var clickx = index % this.cols;
     var clicky = parseInt(index / this.cols);
-    elements[clicky][clickx].style.background = color;
+    var element = items[clicky][clickx];
+    element.style.background = color;
+    element.dataset.isClicked = true;
+    colored[element.dataset.gridIndex] = element;
   }
 };
 
+RGBtoHex = function(r,g,b) {
+  var bin = r << 16 | g << 8 | b;
+  return (function(h){
+      return '#' + new Array(7-h.length).join("0")+h;
+  })(bin.toString(16).toUpperCase());
+};
 var painter = new PixelPainter(24, 48);
