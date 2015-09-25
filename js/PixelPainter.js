@@ -34,17 +34,6 @@ function PixelPainter(rows, cols) {
   this.getPainted = function() {
     return painted;
   };
-  this.clearSelection = function() {    // IMPORTANT: call this first since it clears all state;
-    var keys = Object.keys(painted);
-    for (var i = 0; i < keys.length; i++) {
-      painted[keys[i]].dataset.isClicked = false;       // reset the current paint state;
-    }
-    this.resetSelection(0);
-    isPaint = isErase = isSelect = isMove = isCopy = false;
-    this.moveFirst = this.moveLast = -1;
-    selection = {};
-  };
-
     // make the swatch buttons and register event listeners;
   for (var i = 0; i < swatch.length; i++) {
     swatch[i] = document.createElement('div');
@@ -56,12 +45,28 @@ function PixelPainter(rows, cols) {
       isPaint = true;     // NOT isPaint = !isPaint;
     });
   }
+
+  this.clearSelection = function() {    // IMPORTANT: call this first since it clears all state;
+    this.resetSelection(0);
+    isPaint = isErase = isSelect = isMove = isCopy = false;
+    this.moveFirst = this.moveLast = -1;
+    lastButton = prevButton = null;
+    selection = {};
+    var keys = Object.keys(painted);
+    for (var i = 0; i < keys.length; i++) {
+      var element = painted[keys[i]];
+      element.dataset.prevColor = '';   // reset last stroke color;
+      if (element.style.backgroundColor === 'white')
+        delete painted[element.dataset.gridIndex];
+    }
+  };
   clear.addEventListener('click', function() {
     self.clearSelection();
-    for (var i = 0; i < rows; i++) {
-      for (var j = 0; j < cols; j++) {
-        buttons[i][j].style.backgroundColor = 'white';
-      }
+    var keys = Object.keys(painted);
+    for (var i = 0; i < keys.length; i++) {
+      var element = painted[keys[i]];
+      element.dataset.prevColor = '';             // reset last stroke color;
+      element.style.backgroundColor = 'white';    // reset current stroke color;
     }
     painted = {};
   });
@@ -107,29 +112,27 @@ function PixelPainter(rows, cols) {
       buttons[i][j].addEventListener('mouseover', function() {    // handler to paint and erase on mouseover;
         if (isSelect) {
           if (isErase) {
-            this.dataset.prevColor = this.style.backgroundColor = 'white';
+            this.dataset.prevColor = '';      // set dataset.prevColor to '' so that erase doesn't act like white paint;
+            this.style.backgroundColor = 'white';
             delete painted[this.dataset.gridIndex];
           }
-          else if (isPaint) {
-            if (this.style.backgroundColor === thisColor || this.dataset.prevColor === thisColor) {
-              // IMPORTANT: the 1st condition checks for undo && the 2nd condition checks for redo;
-              if (lastButton === this) {        // MUST reset the last button also;
+          else if (isPaint) {       // if color is white (NOT ''), then painting has been undone, so allow redo;
+            if ((painted[this.dataset.gridIndex] || this.style.backgroundColor === 'white') && this.dataset.prevColor !== '') {
+            // if (this.style.backgroundColor === thisColor || this.dataset.prevColor === thisColor) {
+            //   // IMPORTANT: the 1st condition checks for undo && the 2nd condition checks for redo;
+
+              if (lastButton === this && prevButton.dataset.prevColor !== '') {     // MUST reset the last button also;
                 var prevTemp = prevButton.dataset.prevColor;
                 prevButton.dataset.prevColor = prevButton.style.backgroundColor;
                 prevButton.style.backgroundColor = prevTemp;
-                if (prevButton.style.backgroundColor === 'white')
-                  delete painted[prevButton.dataset.gridIndex];
               }
-              var thisTemp = this.dataset.prevColor;      // MUST set previous color in order to redo color!
+              var tempColor = this.dataset.prevColor;
               this.dataset.prevColor = this.style.backgroundColor;
-              this.style.backgroundColor = thisTemp;
-              if (this.style.backgroundColor === 'white')
-                delete painted[this.dataset.gridIndex];
+              this.style.backgroundColor = tempColor;
             }
             else {
               this.dataset.prevColor = this.style.backgroundColor;
               this.style.backgroundColor = thisColor;
-              this.dataset.isClicked = true;
               painted[this.dataset.gridIndex] = this;
             }
             lastButton = prevButton;    // must set AFTER checking condition above!
@@ -142,21 +145,23 @@ function PixelPainter(rows, cols) {
           self.resetSelection(selectEnd);     // remove pixels' indices smaller than last selection;
         }
       });
+      buttons[i][j].dataset.prevColor = '';             // prevColor enables painting redo; set to '' if not in previous paint stroke;
       buttons[i][j].style.backgroundColor = 'white';    // MUST set color here; colors set in CSS are NOT set in JS variables!
-      buttons[i][j].dataset.prevColor = 'white';        // custom data to record previous color;
       buttons[i][j].dataset.gridIndex = (i * cols) + j;       // custom data to save button's overall index position;
       buttons[i][j].addEventListener('click', function() {    // handler to paint, select, copy, and move;
         if (isErase || isPaint) {
           isSelect = !isSelect;   // NOTE: isSelect is used for erasing && painting only;
-          if (isErase) {          // reset dataset.prevColor so that erase doesn't act like the white paint;
-            this.dataset.prevColor = this.style.backgroundColor = 'white';
-            delete painted[this]; // don't need to set isClicked because it's removed from painted, and is true when re-added;
+          if (isErase) {          // set dataset.prevColor to '' so that erase doesn't act like white paint;
+            this.dataset.prevColor = '';
+            this.style.backgroundColor = 'white';
+            delete painted[this];
           }
           else if (isPaint) {
-            this.dataset.prevColor = this.style.backgroundColor;
-            this.style.backgroundColor = thisColor;
-            this.dataset.isClicked = true;
-            painted[this.dataset.gridIndex] = this;
+            if (this !== prevButton) {
+              this.dataset.prevColor = this.style.backgroundColor;
+              this.style.backgroundColor = thisColor;
+              painted[this.dataset.gridIndex] = this;
+            }
           }
         }
         else if (isMove || isCopy) {
@@ -180,7 +185,6 @@ function PixelPainter(rows, cols) {
                 var element = buttons[parseInt(total / cols)][total % cols];
                 element.dataset.prevColor = element.style.backgroundColor;
                 element.style.backgroundColor = selection[keys[i]].style.backgroundColor;
-                element.dataset.isClicked = true;
                 painted[element.dataset.gridIndex] = element;
 
                 if (isMove && !selection[total]) {    // DO NOT change the element if its new position matches selection's position;
@@ -276,10 +280,12 @@ PixelPainter.prototype.encode = function() {
   var str = '';
   var colored = this.getPainted();
   var keys = Object.keys(colored);
-  for (var i = 0; i < keys.length; i++) {     // dataset always returns a STRING;
-    var index = Number(colored[keys[i]].dataset.gridIndex).toString(36);
-    index = index.length === 1 ? '0' + index : index;
+  for (var i = 0; i < keys.length; i++) {
     var color = colored[keys[i]].style.backgroundColor;
+    if (color === 'white')      // color is white if painting was undone;
+      continue;
+    var index = Number(colored[keys[i]].dataset.gridIndex).toString(36);
+    index = index.length === 1 ? '0' + index : index;   // dataset always returns a STRING;
     if (color.indexOf('rgb') === 0) {
       var nums = color.substring(4, color.length - 1).split(',');
       color = RGBtoHex(nums[0], nums[1], nums[2]);
@@ -306,7 +312,6 @@ PixelPainter.prototype.decode = function(str) {
     var clicky = parseInt(index / this.cols);
     var element = items[clicky][clickx];
     element.style.backgroundColor = color;
-    element.dataset.isClicked = true;
     colored[element.dataset.gridIndex] = element;
   }
 };
