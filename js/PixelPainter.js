@@ -55,7 +55,7 @@ function PixelPainter(rows, cols) {
     var keys = Object.keys(painted);
     for (var i = 0; i < keys.length; i++) {
       var element = painted[keys[i]];
-      element.dataset.prevColor = '';   // reset last stroke color;
+      element.dataset.prevColor = '';   // reset last color;
       if (element.style.backgroundColor === 'white')
         delete painted[element.dataset.gridIndex];
     }
@@ -65,8 +65,8 @@ function PixelPainter(rows, cols) {
     var keys = Object.keys(painted);
     for (var i = 0; i < keys.length; i++) {
       var element = painted[keys[i]];
-      element.dataset.prevColor = '';             // reset last stroke color;
-      element.style.backgroundColor = 'white';    // reset current stroke color;
+      element.dataset.prevColor = '';             // reset last color;
+      element.style.backgroundColor = 'white';    // reset current color;
     }
     painted = {};
   });
@@ -145,8 +145,8 @@ function PixelPainter(rows, cols) {
           self.resetSelection(selectEnd);     // remove pixels' indices smaller than last selection;
         }
       });
-      buttons[i][j].dataset.prevColor = '';             // prevColor enables painting redo; set to '' if not in previous paint stroke;
-      buttons[i][j].style.backgroundColor = 'white';    // MUST set color here; colors set in CSS are NOT set in JS variables!
+      buttons[i][j].dataset.prevColor = '';               // prevColor enables painting redo; set to '' to prevent redos;
+      buttons[i][j].style.backgroundColor = 'white';      // colors set in CSS are NOT set in JS variables! set to white to enable redos;
       buttons[i][j].dataset.gridIndex = (i * cols) + j;       // custom data to save button's overall index position;
       buttons[i][j].addEventListener('click', function() {    // handler to paint, select, copy, and move;
         if (isErase || isPaint) {
@@ -157,7 +157,7 @@ function PixelPainter(rows, cols) {
             delete painted[this];
           }
           else if (isPaint) {
-            if (this !== prevButton) {
+            if (this !== prevButton) {    // condition required so that clicking to stop mouseover do not cause a redo;
               this.dataset.prevColor = this.style.backgroundColor;
               this.style.backgroundColor = thisColor;
               painted[this.dataset.gridIndex] = this;
