@@ -11,17 +11,46 @@
 .swatchButton {
   width: 64px;
   height: 64px;
-  border: 1px black groove;
+  border: 2px black ridge;
+  background-color: gray;
   display: inline-block;
 }
 
-.control {
+.controlButton {
+  color: red;
   font-size: 1em;
   width: 120px;
   height: 64px;
   margin: 8px;
   padding: 8px;
-  border: 1px black ridge;
+  border: 2px red ridge;
+  background-color: #F5F5DC;
+  display: inline-block;
+}
+
+.imageButton {
+  color: red;
+  font-size: 1em;
+  width: 120px;
+  height: 64px;
+  display: inline-block;
+} /* cannot set border since display is inline-block */
+
+.buttonContainer {
+  width: 120px;
+  height: 64px;
+  margin: 8px;
+  border: 1px red ridge;
+  background-color: #F5F5DC;
+  display: inline-block;
+}
+
+.buttonContainer:hover {
+  border: 2px red groove;
+}
+
+.controlButton:hover {
+  border: 4px red groove;
 }
 
 .selected {
@@ -29,19 +58,57 @@
   opacity: 0.3;
 }
 
+#swatch > div:hover {
+  border: 2px red groove;
+}
+
+.spacing {
+  padding: 8px;
+}
+
+body {
+  background-image: url("../assets/gradient.jpg");
+  margin: 16px;
+}
+
+#erase {
+  background: url("erase.svg") no-repeat center;
+}
+
+#clear {
+  background: url("refresh.svg") no-repeat center;
+}
+
+#logo {
+  width: 32px;
+  height: 32px;
+}
+
+#heading {
+  display: inline-block;
+}
+
 .info {
-  border-bottom: 1px black ridge;
+  font-size: smaller;
+  font-family: "Roboto Slab";
   text-align: center;
-  padding-bottom: 16px;
+  padding: 16px;
+}
+
+.sidebar {
+  float: left;
+  color: red;
+  width: 400px;
+  padding-bottom: 40px;
+  font-family: "Roboto Slab";
+  text-align: center;
+  background-color: rgba(0, 0, 0, 0.65);
 }
 
 .grid {
   white-space: nowrap;
-  overflow: auto;
-  padding-bottom: 8px;
-} /* BUG: right border will not show up if nowrap is used; add specific padding to fix, but general "padding" will not work; */
-
-.spacing {
-  margin: 8px;
+  overflow: scroll;
+  border-right: 16px solid transparent;
   text-align: center;
-}
+  padding: 32px 32px 0 32px;
+} /* BUG: right border will not show up if nowrap is used; add specific padding or border to fix, but general "padding" will not work; */

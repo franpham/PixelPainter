@@ -1,15 +1,15 @@
-PixelPainter.defColors = ['white',    'silver',    'gray',    'black',    'red',    'maroon',    'yellow',    'olive',    'lime',    'green',
+PixelPainter.defColors = ['white',    'black',    'silver',    'red',    '#9400D3',    'maroon',    'yellow',    'olive',    'lime',    'green',
   'aqua',     'teal',       'blue',      'navy',      'fuchsia',      'purple',     '#F08080',    '#F0E68C', '#D2691E', '#00FF7F', '#87CEEB',
-  '#6A5ACD',    '#FF1493',     '#DC143C',     '#FF7F50',     '#FFE4B5',     '#DEB887',    '#7FFF00',    '#40E0D0', '#00BFFF', '#9400D3', '#778899'];
-PixelPainter.numColors = {'white': 0, 'silver': 1, 'gray': 2, 'black': 3, 'red': 4, 'maroon': 5, 'yellow': 6, 'olive': 7, 'lime': 8, 'green': 9,
+  '#6A5ACD',    '#FF1493',     '#DC143C',     '#FF7F50',     '#FFE4B5',     '#DEB887',    '#7FFF00',    '#40E0D0', '#00BFFF', 'gray', '#778899'];
+PixelPainter.numColors = {'white': 0, 'black': 1, 'silver': 2, 'red': 3, '#9400D3': 4, 'maroon': 5, 'yellow': 6, 'olive': 7, 'lime': 8, 'green': 9,
   'aqua': 'A', 'teal': 'B', 'blue': 'C', 'navy': 'D', 'fuchsia': 'E', 'purple': 'F', '#F08080': 'G', '#F0E68C': 'H', '#D2691E': 'I', '#00FF7F': 'J', '#87CEEB': 'K',
-  '#6A5ACD': 'L', '#FF1493': 'M', '#DC143C': 'N', '#FF7F50': 'O', '#FFE4B5': 'P', '#DEB887': 'Q', '#7FFF00': 'R', '#40E0D0': 'S', '#00BFFF': 'T', '#9400D3': 'U', '#778899': 'V'};
+  '#6A5ACD': 'L', '#FF1493': 'M', '#DC143C': 'N', '#FF7F50': 'O', '#FFE4B5': 'P', '#DEB887': 'Q', '#7FFF00': 'R', '#40E0D0': 'S', '#00BFFF': 'T', 'gray': 'U', '#778899': 'V'};
+// remove #778899 and gray colors in swatch for sidebar layout;
 
 function PixelPainter(rows, cols) {
-  var swatch = new Array(32);
+  var swatch = new Array(30);
   var buttons = new Array(rows);
   var grid = document.getElementById('grid');
-  var topbar = document.getElementById('topbar');
   var erase = document.createElement('button');
   var clear = document.createElement('button');
   var move = document.createElement('button');
@@ -17,9 +17,10 @@ function PixelPainter(rows, cols) {
   var hash = document.createElement('button');
   var isPaint = isErase = isSelect = isMove = isCopy = false;
   var lastButton= prevButton = null;
+  var lastColor = 'white';    // default white, NOT '';
   var thisColor = 'white';    // the selected color;
   var selection = {};         // the selected buttons;
-  var painted = {};           // contains painted elements;
+  var lastFill  = {};         // contains last colored elements;
   var self = this;            // "this" in event listeners refer to html elements;
   this.moveFirst = -1;        // no getter methods for these properties, so keep public;
   this.moveLast = -1;
@@ -31,8 +32,16 @@ function PixelPainter(rows, cols) {
   this.getSelection = function() {
     return selection;
   };
-  this.getPainted = function() {
-    return painted;
+  this.getPainted = function(color) {
+    var cells = {};
+    for (var i = 0; i < rows; i++) {
+      for (var j = 0; j < cols; j++) {     // get all painted cells if color is undefined;
+        var cellColor = buttons[i][j].style.backgroundColor;
+        if ((!color && cellColor !== '' && cellColor !== 'white') || cellColor === color)
+          cells[buttons[i][j].dataset.gridIndex] = buttons[i][j];
+      }
+    }
+    return cells;
   };
     // make the swatch buttons and register event listeners;
   for (var i = 0; i < swatch.length; i++) {
@@ -41,8 +50,10 @@ function PixelPainter(rows, cols) {
     swatch[i].style.backgroundColor = PixelPainter.defColors[i];
     swatch[i].addEventListener('click', function() {
       self.clearSelection();
+      lastColor = thisColor;
       thisColor = this.style.backgroundColor;
-      isPaint = true;     // NOT isPaint = !isPaint;
+      isPaint = true;       // NOT isPaint = !isPaint;
+      lastFill = self.getPainted(lastColor);
     });
   }
 
@@ -52,26 +63,18 @@ function PixelPainter(rows, cols) {
     this.moveFirst = this.moveLast = -1;
     lastButton = prevButton = null;
     selection = {};
-    var keys = Object.keys(painted);
-    for (var i = 0; i < keys.length; i++) {
-      var element = painted[keys[i]];
-      element.dataset.prevColor = '';   // reset last color;
-      if (element.style.backgroundColor === 'white')
-        delete painted[element.dataset.gridIndex];
-    }
   };
   clear.addEventListener('click', function() {
     self.clearSelection();
-    var keys = Object.keys(painted);
-    for (var i = 0; i < keys.length; i++) {
-      var element = painted[keys[i]];
-      element.dataset.prevColor = '';             // reset last color;
-      element.style.backgroundColor = 'white';    // reset current color;
+    lastFill = {};
+    for (var i = 0; i < rows; i++) {
+      for (var j = 0; j < cols; j++) {     // get all painted cells if color is undefined;
+        buttons[i][j].style.backgroundColor = 'white';
+      }
     }
-    painted = {};
   });
 
-  // set properties and add listeners for control buttons
+  // set properties and add listeners for action buttons
   erase.addEventListener('click', function() {
     self.clearSelection();
     thisColor = 'white';
@@ -88,18 +91,27 @@ function PixelPainter(rows, cols) {
   hash.addEventListener('click', function() {
     alert('Link to this URL to share your artwork:\n' + window.location + '#' + self.encode());
   });
-  erase.className = clear.className = 'control';
-  move.className = copy.className = hash.className = 'control';
+  erase.id = 'erase';
+  clear.id = 'clear';
+  erase.className = clear.className = 'imageButton';
+  move.className = copy.className = hash.className = 'controlButton';
   erase.appendChild(document.createTextNode('Erase'));
   clear.appendChild(document.createTextNode('Clear'));
   move.appendChild(document.createTextNode('Move'));
   copy.appendChild(document.createTextNode('Copy'));
   hash.appendChild(document.createTextNode('Encode'));
-  topbar.appendChild(erase);
-  topbar.appendChild(clear);
-  topbar.appendChild(move);
-  topbar.appendChild(copy);
-  topbar.appendChild(hash);
+  var tempDiv1 = document.createElement('div');
+  var tempDiv2 = document.createElement('div');
+  var controls = document.getElementById('controls');
+  tempDiv1.appendChild(erase);
+  tempDiv2.appendChild(clear);
+  controls.appendChild(tempDiv1);
+  controls.appendChild(tempDiv2);
+  controls.appendChild(move);
+  controls.appendChild(copy);
+  controls.appendChild(hash);
+  tempDiv1.className = 'buttonContainer';
+  tempDiv2.className = 'buttonContainer';
 
   // make the grid buttons and register event listeners;
   for (var i = 0; i < rows; i++) {
@@ -108,21 +120,22 @@ function PixelPainter(rows, cols) {
       buttons[i][j] = document.createElement('div');
       buttons[i][j].className = 'button';
       // buttons[i][j].name = i + '/' + j;   // FOR DEBUGGING;
-      // IMPLEMENTATION: undo/ redo color when any button is revisited during the same mouseover session;
+      // IMPLEMENTATION: undo/ redo color when any button is revisited during a mouseover session;
       buttons[i][j].addEventListener('mouseover', function() {    // handler to paint and erase on mouseover;
         if (isSelect) {
           if (isErase) {
-            this.dataset.prevColor = '';      // set dataset.prevColor to '' so that erase doesn't act like white paint;
+            this.dataset.prevColor = '';      // set dataset.prevColor to '' to prevent redos;
             this.style.backgroundColor = 'white';
-            delete painted[this.dataset.gridIndex];
           }
-          else if (isPaint) {       // if color is white (NOT ''), then painting has been undone, so allow redo;
-            if ((painted[this.dataset.gridIndex] || this.style.backgroundColor === 'white') && this.dataset.prevColor !== '') {
-            // if (this.style.backgroundColor === thisColor || this.dataset.prevColor === thisColor) {
-            //   // IMPORTANT: the 1st condition checks for undo && the 2nd condition checks for redo;
-
-              if (lastButton === this && prevButton.dataset.prevColor !== '') {     // MUST reset the last button also;
-                var prevTemp = prevButton.dataset.prevColor;
+          else if (isPaint) {
+            if (this.dataset.prevColor === '') {
+              if (this.style.backgroundColor === lastColor)
+                this.dataset.prevColor = lastColor;     // enable undo/ redo;
+              this.style.backgroundColor = thisColor;
+            }
+            else if ((lastFill[this.dataset.gridIndex] || this.dataset.prevColor === lastColor) && this.style.backgroundColor === lastColor) {
+              if (lastButton === this && (prevButton.dataset.prevColor === lastColor || prevButton.style.backgroundColor === lastColor)) {
+                var prevTemp = prevButton.dataset.prevColor;          // MUST reset the last button also;
                 prevButton.dataset.prevColor = prevButton.style.backgroundColor;
                 prevButton.style.backgroundColor = prevTemp;
               }
@@ -130,10 +143,16 @@ function PixelPainter(rows, cols) {
               this.dataset.prevColor = this.style.backgroundColor;
               this.style.backgroundColor = tempColor;
             }
-            else {
+            // IMPORTANT: the 2nd condition checks for undo && the 1st condition checks for redo;
+            else if (this.dataset.prevColor === thisColor || this.style.backgroundColor === thisColor) {
+              if (lastButton === this && (prevButton.dataset.prevColor === thisColor || prevButton.style.backgroundColor === thisColor)) {
+                var prevTemp = prevButton.dataset.prevColor;          // MUST reset the last button also;
+                prevButton.dataset.prevColor = prevButton.style.backgroundColor;
+                prevButton.style.backgroundColor = prevTemp;
+              }
+              var tempColor = this.dataset.prevColor;
               this.dataset.prevColor = this.style.backgroundColor;
-              this.style.backgroundColor = thisColor;
-              painted[this.dataset.gridIndex] = this;
+              this.style.backgroundColor = tempColor;
             }
             lastButton = prevButton;    // must set AFTER checking condition above!
             prevButton = this;
@@ -144,24 +163,20 @@ function PixelPainter(rows, cols) {
           self.setSelection(selectEnd);       // add pixels' indices larger than last selection;
           self.resetSelection(selectEnd);     // remove pixels' indices smaller than last selection;
         }
-      });
-      buttons[i][j].dataset.prevColor = '';               // prevColor enables painting redo; set to '' to prevent redos;
-      buttons[i][j].style.backgroundColor = 'white';      // colors set in CSS are NOT set in JS variables! set to white to enable redos;
-      buttons[i][j].dataset.gridIndex = (i * cols) + j;       // custom data to save button's overall index position;
+      });         // IMPORTANT: set prevColor to '' to disable redos, and to 'white' to enable redos;
+      buttons[i][j].dataset.prevColor = '';          // prevColor enables painting redos;
+      buttons[i][j].style.backgroundColor = '';      // colors set in CSS are NOT set in JS variables!
+      buttons[i][j].dataset.gridIndex = (i * cols) + j;       // data to save button's overall index position;
       buttons[i][j].addEventListener('click', function() {    // handler to paint, select, copy, and move;
         if (isErase || isPaint) {
           isSelect = !isSelect;   // NOTE: isSelect is used for erasing && painting only;
-          if (isErase) {          // set dataset.prevColor to '' so that erase doesn't act like white paint;
+          if (isErase) {          // set dataset.prevColor to '' to prevent redos;
             this.dataset.prevColor = '';
             this.style.backgroundColor = 'white';
-            delete painted[this];
           }
-          else if (isPaint) {
-            if (this !== prevButton) {    // condition required so that clicking to stop mouseover do not cause a redo;
-              this.dataset.prevColor = this.style.backgroundColor;
-              this.style.backgroundColor = thisColor;
-              painted[this.dataset.gridIndex] = this;
-            }
+          else if (isPaint && this !== prevButton) {    // check so that clicking to stop mouseover do not cause a redo;
+            this.dataset.prevColor = this.style.backgroundColor;
+            this.style.backgroundColor = thisColor;
           }
         }
         else if (isMove || isCopy) {
@@ -179,18 +194,14 @@ function PixelPainter(rows, cols) {
             else {
               var keys = Object.keys(selection);
               var maxMove = self.findMoveDiff(movePos);
-              // console.log("maxMove = " + maxMove);   // FOR DEBUGGING;
               for (var i = 0; i < keys.length; i++) {
                 var total = parseInt(selection[keys[i]].dataset.gridIndex) + maxMove;
                 var element = buttons[parseInt(total / cols)][total % cols];
                 element.dataset.prevColor = element.style.backgroundColor;
                 element.style.backgroundColor = selection[keys[i]].style.backgroundColor;
-                painted[element.dataset.gridIndex] = element;
 
-                if (isMove && !selection[total]) {    // DO NOT change the element if its new position matches selection's position;
+                if (isMove && !selection[total])    // DO NOT change the element if its new position matches selection's position;
                   selection[keys[i]].style.backgroundColor = 'white';
-                  delete painted[selection[keys[i]].dataset.gridIndex];
-                }
               }
               if (isMove)
                 self.clearSelection();
@@ -206,21 +217,14 @@ function PixelPainter(rows, cols) {
   for (var i = 0; i < rows; i++) {
     var temp = document.createElement('div');
     for (var j = 0; j < cols; j++) {
-      temp.appendChild(buttons[i][j]);
+      grid.appendChild(buttons[i][j]);
     }
     grid.appendChild(temp);
   }
-  // add the swatch buttons to 2 div row;
-  var row1 = document.createElement('div');
-  var row2 = document.createElement('div');
+  var swatches = document.getElementById('swatch');
   for (var i = 0; i < swatch.length; i++) {
-    if (i < swatch.length / 2)
-      row1.appendChild(swatch[i]);
-    else
-      row2.appendChild(swatch[i]);
+    swatches.appendChild(swatch[i]);
   }
-  topbar.appendChild(row1);
-  topbar.appendChild(row2);
   if (window.location.hash)
     this.decode(window.location.hash.substring(1));
 }
@@ -282,8 +286,6 @@ PixelPainter.prototype.encode = function() {
   var keys = Object.keys(colored);
   for (var i = 0; i < keys.length; i++) {
     var color = colored[keys[i]].style.backgroundColor;
-    if (color === 'white')      // color is white if painting was undone;
-      continue;
     var index = Number(colored[keys[i]].dataset.gridIndex).toString(36);
     index = index.length === 1 ? '0' + index : index;   // dataset always returns a STRING;
     if (color.indexOf('rgb') === 0) {
@@ -299,7 +301,6 @@ PixelPainter.prototype.decode = function(str) {
   var keys = [];
   var start = 0;
   var items = this.getButtons();
-  var colored = this.getPainted();
   while (start < str.length) {
     keys.push(str.substring(start, start + 3));
     start += 3;
@@ -312,7 +313,6 @@ PixelPainter.prototype.decode = function(str) {
     var clicky = parseInt(index / this.cols);
     var element = items[clicky][clickx];
     element.style.backgroundColor = color;
-    colored[element.dataset.gridIndex] = element;
   }
 };
 

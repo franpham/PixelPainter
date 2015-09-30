@@ -4,12 +4,18 @@
     <title>Pixel Painter</title>
   </head>
   <body>
-    <h2 class="spacing">Pixel Painter</h2>
-    <div class="spacing">Click to start drawing or selecting, then click again to stop.</div>
-    <div class="spacing">For Copy &amp; Move, select the content first, then select the square of the new position.</div>
-    <div class="spacing info">Select from top left to bottom right. If selected area is larger than content, the white squares will be moved or copied also.</div>
-    <div id="topbar" class="spacing"></div>
+    <div id="sidebar" class="sidebar spacing">
+      <img src="css/logo.svg" id="logo" />
+      <h2 id="heading">Pixel Painter</h2>
+      <div id="controls" class="spacing"></div>
+      <div id="swatch" class="spacing"></div>
+    </div>
     <div id="grid" class="grid spacing"></div>
+    <div class="info spacing"><!-- if grid is inside a block, padding will not show -->
+      <p>Click to start drawing or selecting; click again to stop.</p>
+      <p>For Copy &amp; Move, select the content first, then select the square of the new position.</p>
+      <p>Select from top left to bottom right. If selected area is larger than content, the white squares will be moved or copied also.</p>
+    </div>
     <script type="text/javascript" src="js/PixelPainter.js"></script>
   </body>
 </html>
